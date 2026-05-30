@@ -1,0 +1,21 @@
+# Unpublished manuscripts and collaboration notes
+00_private_unpublished/
+
+# Downloaded copyrighted papers
+literature/core_ieee_paper/papers/
+
+# Generated reading-note exports
+literature/**/*.pdf
+literature/**/*.html
+
+# LaTeX build outputs
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.synctex.gz
+
+# System files
+Thumbs.db
+.DS_Store
