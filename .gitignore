@@ -7,6 +7,7 @@ literature/core_ieee_paper/papers/
 # Generated reading-note exports
 literature/**/*.pdf
 literature/**/*.html
+paper_watch/*.md
 
 # LaTeX build outputs
 *.aux

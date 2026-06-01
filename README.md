@@ -17,13 +17,16 @@ Run the lightweight arXiv watcher to collect recent papers related to smart-grid
 python tools/arxiv_watch.py
 ```
 
-By default, the script scans recent papers from `eess.SY`, `math.OC`, `cs.LG`, `stat.ML`, and `eess.SP`, ranks them with local keyword rules, and writes a Markdown digest to `paper_watch/arxiv-digest.md`.
+By default, the script scans recent papers from `eess.SY`, `math.OC`, and `eess.SP`, first requires a power-system topical match, then ranks the remaining papers with control, optimization, and algorithm keywords. It writes a Markdown digest to `paper_watch/arxiv-digest.md`.
 
 Useful options:
 
 ```powershell
-python tools/arxiv_watch.py --days 30 --min-score 2 --max-results 200
-python tools/arxiv_watch.py --keywords "power system" "distributed control" ADMM KKT microgrid
+python tools/arxiv_watch.py --days 30 --min-score 7 --max-results 200
+python tools/arxiv_watch.py --power-keywords "power system" microgrid "energy storage" "wind farm"
+python tools/arxiv_watch.py --method-keywords "distributed control" ADMM KKT Lyapunov
+python tools/arxiv_watch.py --include-general-methods --keywords "stochastic approximation"
+python tools/arxiv_watch.py --categories eess.SY math.OC eess.SP cs.LG stat.ML --per-category
 python tools/arxiv_watch.py --output paper_watch/weekly-digest.md
 ```
 
