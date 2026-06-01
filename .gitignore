@@ -16,6 +16,10 @@ literature/**/*.html
 *.out
 *.synctex.gz
 
+# Python cache
+__pycache__/
+*.py[cod]
+
 # System files
 Thumbs.db
 .DS_Store
