@@ -475,7 +475,7 @@ $$
 
 但是，这个总量关系只说明“所有 ES 合起来应该输出或吸收多少功率”，并没有说明“每一个 ES 应该承担多少”。例如，若总共需要 ES 放电 $0.6~\mathrm{pu}$，可以平均分配，也可以让某些 ES 多放电、某些 ES 少放电。满足总功率平衡的分配方式有无穷多种。
 
-因此，论文需要进一步引入一个分配准则。这个准则就是 ES 一致性变量：
+因此，论文需要进一步引入一个分配准则。这个准则就是 ES 一致性变量 [27，Khazaei et al., 2020, “Consensus-Based Demand Response of PMSG Wind Turbines With Distributed Energy Storage Considering Capability Curves”]：
 
 $$
 E_{\mathrm{e},i}=K_1P_{\mathrm{e},i}+K_2S_{\mathrm{e},i}
@@ -2500,3 +2500,2924 @@ G\text{ 连通}
 $$
 
 在本文中，$\lambda_2(L_{\mathrm{c}})>0$ 是通信网络可用于全局一致性控制的基本前提。
+
+## 15. 从单台 WT 模型到全场闭环模型：式 (9)、式 (10) 与附录 B 的理解
+
+Section III-B 开始，论文将前文建立的单台 WT 状态空间模型进一步扩展到整个风电场。这里最容易混淆的是：式 (9) 中单台 WT 模型写成加号形式，而式 (10) 中全场模型写成减号形式。
+
+论文式 (9) 为：
+
+$$
+\dot x_i=A_ix_i+B_iu_i
+$$
+
+$$
+u_i=-\sum_{j\in\vartheta_i}C_{ij}x_j
+$$
+
+而式 (10) 写成：
+
+$$
+\dot x=Ax-Bu=(A-BC)x=A_{\mathrm{cl}}x
+$$
+
+$$
+C=\mathcal H(M_{\mathrm{c}})
+$$
+
+这两个式子并不矛盾，差别主要来自对输入符号的定义方式不同。
+
+---
+
+### 15.1 为什么式 (9) 是加号，而式 (10) 是减号
+
+式 (9) 的第一行：
+
+$$
+\dot x_i=A_ix_i+B_iu_i
+$$
+
+是标准状态空间输入形式，表示输入 $u_i$ 通过输入矩阵 $B_i$ 作用于单台 WT 的状态动态。
+
+但是式 (9) 的第二行又规定：
+
+$$
+u_i=-\sum_{j\in\vartheta_i}C_{ij}x_j
+$$
+
+也就是说，$u_i$ 本身已经是一个带负号的一致性反馈输入。将第二行代入第一行，可得：
+
+$$
+\dot x_i
+=A_i x_i-B_i \sum_{j\in\vartheta_i}C_{ij}x_j
+$$
+
+因此，虽然式 (9) 第一行表面上是加号，但由于 $u_i$ 自身包含负反馈符号，实际闭环效果仍然是：
+
+$$
+A_i-B_iC_i
+$$
+
+这一点和普通负反馈系统是类似的。可以有两种等价写法。
+
+第一种写法是把负号放进输入定义中：
+
+$$
+\dot x=A x+B u_{\mathrm{actual}}
+$$
+
+$$
+u_{\mathrm{actual}}=-Cx
+$$
+
+代入后：
+
+$$
+\dot x=(A-BC)x
+$$
+
+第二种写法是把输入定义为正的反馈量，再在系统方程中显式写出负号：
+
+$$
+u=Cx
+$$
+
+$$
+\dot x=Ax-Bu
+$$
+
+代入后同样得到：
+
+$$
+\dot x=(A-BC)x
+$$
+
+式 (9) 更接近第一种写法，式 (10) 更接近第二种写法。因此，式 (9) 与式 (10) 的符号差异不是物理含义改变，而是负反馈符号放置位置不同。
+
+可以理解为：
+
+$$
+\boxed{
+\text{式 (9)：输入通道写成 }+B_iu_i,\text{ 但 }u_i\text{ 已经包含负号}
+}
+$$
+
+$$
+\boxed{
+\text{式 (10)：重新定义 }u=Cx,\text{ 因此负号显式写在 }-Bu\text{ 中}
+}
+$$
+
+最终二者都对应：
+
+$$
+\boxed{
+\dot x=(A-BC)x
+}
+$$
+
+---
+
+### 15.2 全场状态变量的堆叠
+
+在式 (10) 中，论文将所有 WT 的状态变量堆叠为全场状态向量：
+
+$$
+x=
+\begin{bmatrix}
+Q_{\mathrm{d}}^{\mathrm{T}}&
+Q_{\mathrm{d},\mathrm{int}}^{\mathrm{T}}&
+i_{\mathrm{dr}}^{\mathrm{T}}&
+P_{\mathrm{e}}^{\mathrm{T}}&
+P_{\mathrm{e},\mathrm{int}}^{\mathrm{T}}&
+i_{\mathrm{L}}^{\mathrm{T}}&
+S_{\mathrm{e}}^{\mathrm{T}}
+\end{bmatrix}^{\mathrm{T}}
+$$
+
+其中：
+
+$$
+Q_{\mathrm{d}}=
+\begin{bmatrix}
+Q_{\mathrm{d},1}&Q_{\mathrm{d},2}&\cdots&Q_{\mathrm{d},N}
+\end{bmatrix}^{\mathrm{T}}
+$$
+
+$$
+P_{\mathrm{e}}=
+\begin{bmatrix}
+P_{\mathrm{e},1}&P_{\mathrm{e},2}&\cdots&P_{\mathrm{e},N}
+\end{bmatrix}^{\mathrm{T}}
+$$
+
+$$
+S_{\mathrm{e}}=
+\begin{bmatrix}
+S_{\mathrm{e},1}&S_{\mathrm{e},2}&\cdots&S_{\mathrm{e},N}
+\end{bmatrix}^{\mathrm{T}}
+$$
+
+全场输入变量为：
+
+$$
+u=
+\begin{bmatrix}
+(\dot Q_{\mathrm{d}}^{\mathrm{ref}})^{\mathrm{T}}&
+(\dot P_{\mathrm{e}}^{\mathrm{ref}})^{\mathrm{T}}
+\end{bmatrix}^{\mathrm{T}}
+$$
+
+其中：
+
+$$
+\dot Q_{\mathrm{d}}^{\mathrm{ref}}
+=
+
+\begin{bmatrix}
+\dot Q_{\mathrm{d},1}^{\mathrm{ref}}&
+\dot Q_{\mathrm{d},2}^{\mathrm{ref}}&
+\cdots&
+\dot Q_{\mathrm{d},N}^{\mathrm{ref}}
+\end{bmatrix}^{\mathrm{T}}
+$$
+
+$$
+\dot P_{\mathrm{e}}^{\mathrm{ref}}
+=
+
+\begin{bmatrix}
+\dot P_{\mathrm{e},1}^{\mathrm{ref}}&
+\dot P_{\mathrm{e},2}^{\mathrm{ref}}&
+\cdots&
+\dot P_{\mathrm{e},N}^{\mathrm{ref}}
+\end{bmatrix}^{\mathrm{T}}
+$$
+
+矩阵 $A$ 和 $B$ 是由所有单台 WT 的 $A_i$ 和 $B_i$ 堆叠得到的全场矩阵。若各 WT 参数一致，则它们具有重复的块结构；若参数不同，则各个块可以不同。
+
+---
+
+### 15.3 附录 B 的核心目的
+
+附录 B 的核心任务是说明：上层一致性控制生成的参考输入 $u$ 可以写成状态变量 $x$ 的线性组合，即：
+
+$$
+u=Cx
+$$
+
+更具体地说，需要说明：
+
+$$
+\dot Q_{\mathrm{d}}^{\mathrm{ref}}
+$$
+
+可以由 $Q_{\mathrm{d}}$ 线性表示，而：
+
+$$
+\dot P_{\mathrm{e}}^{\mathrm{ref}}
+$$
+
+可以由 $P_{\mathrm{e}}$ 和 $S_{\mathrm{e}}$ 线性表示。
+
+由于 $Q_{\mathrm{d}}$、$P_{\mathrm{e}}$ 和 $S_{\mathrm{e}}$ 都是全场状态向量 $x$ 的组成部分，因此可以进一步得到：
+
+$$
+u=Cx
+$$
+
+这一步是式 (10) 成立的关键。
+
+---
+
+### 15.4 无功参考变化率的展开
+
+DFIG 无功一致性变量为：
+
+$$
+E_{\mathrm{d},i}=
+\frac{Q_{\mathrm{d},i}}{A_{\mathrm{d},i}}
+$$
+
+将所有机组写成向量形式，可定义：
+
+$$
+E_{\mathrm{d}}=
+D_{\mathrm{A}}Q_{\mathrm{d}}
+$$
+
+其中：
+
+$$
+D_{\mathrm{A}}=
+\mathrm{diag}
+\left(
+\frac{1}{A_{\mathrm{d},1}},
+\frac{1}{A_{\mathrm{d},2}},
+\cdots,
+\frac{1}{A_{\mathrm{d},N}}
+\right)
+$$
+
+一致性控制中的邻居差异项可以用通信拉普拉斯矩阵 $L_{\mathrm{c}}$ 表示。于是无功参考变化率可以写成：
+
+$$
+\dot Q_{\mathrm{d}}^{\mathrm{ref}}
+=
+-c_1L_{\mathrm{c}}E_{\mathrm{d}}
++
+c_0^{\mathrm{Q}}\Gamma_{\mathrm{c},0}\Delta Q
+$$
+
+其中，$\Gamma_{\mathrm{c},0}$ 表示 leader 节点标记向量，$c_1$ 是无功一致性控制增益，$c_0^{\mathrm{Q}}$ 是无功全局偏差反馈增益。
+
+风电场无功偏差为：
+
+$$
+\Delta Q
+=
+Q_{\mathrm{wf}}^{\mathrm{ref}}
+-1_N^{\mathrm{T}}Q_{\mathrm{d}}
+$$
+>注：$1_N$ 表示长度为 $N$ 的全 1 列向量，即 $1_N=[1,1,\cdots,1]^{\mathrm{T}}$；因此 $1_N^{\mathrm{T}}$ 是全 1 行向量。若 $Q_{\mathrm{d}}=[Q_{\mathrm{d},1},Q_{\mathrm{d},2},\cdots,Q_{\mathrm{d},N}]^{\mathrm{T}}$，则 $1_N^{\mathrm{T}}Q_{\mathrm{d}}=\sum_{i=1}^{N}Q_{\mathrm{d},i}$，表示对所有节点对应变量求和。同理，$1_N^{\mathrm{T}}P_{\mathrm{e}}$ 表示所有 ES 有功功率之和，$1_N^{\mathrm{T}}P_{\mathrm{d}}$ 表示所有 DFIG 有功功率之和。
+
+代入 $E_{\mathrm{d}}=D_{\mathrm{A}}Q_{\mathrm{d}}$ 和 $\Delta Q$，可得：
+
+$$
+\dot Q_{\mathrm{d}}^{\mathrm{ref}}
+=
+
+-c_1L_{\mathrm{c}}D_{\mathrm{A}}Q_{\mathrm{d}}
++
+c_0^{\mathrm{Q}}\Gamma_{\mathrm{c},0}
+\left(
+Q_{\mathrm{wf}}^{\mathrm{ref}}
+-
+
+1_N^{\mathrm{T}}Q_{\mathrm{d}}
+\right)
+$$
+
+整理为：
+
+$$
+\dot Q_{\mathrm{d}}^{\mathrm{ref}}
+=
+
+-\left(
+c_1L_{\mathrm{c}}D_{\mathrm{A}}
++
+c_0^{\mathrm{Q}}\Gamma_{\mathrm{c},0}1_N^{\mathrm{T}}
+\right)Q_{\mathrm{d}}
++
+c_0^{\mathrm{Q}}\Gamma_{\mathrm{c},0}Q_{\mathrm{wf}}^{\mathrm{ref}}
+$$
+
+该式说明，无功参考变化率 $\dot Q_{\mathrm{d}}^{\mathrm{ref}}$ 与全场无功状态 $Q_{\mathrm{d}}$ 线性相关，同时包含由无功调度指令 $Q_{\mathrm{wf}}^{\mathrm{ref}}$ 引起的外部输入项。
+
+如果在某个工作点附近采用偏差变量建模，或只分析闭环收敛特性，则外部常值项可被吸收到平衡点中。此时主要关注的是：
+
+$$
+\dot Q_{\mathrm{d}}^{\mathrm{ref}}
+\sim
+-\left(
+c_1L_{\mathrm{c}}D_{\mathrm{A}}
++
+c_0^{\mathrm{Q}}\Gamma_{\mathrm{c},0}1_N^{\mathrm{T}}
+\right)Q_{\mathrm{d}}
+$$
+
+因此，$\dot Q_{\mathrm{d}}^{\mathrm{ref}}$ 可以由状态变量 $Q_{\mathrm{d}}$ 线性表示。
+
+---
+
+### 15.5 有功参考变化率的展开
+
+ES 一致性变量为：
+
+$$
+E_{\mathrm{e},i}=K_1P_{\mathrm{e},i}+K_2S_{\mathrm{e},i}
+$$
+
+写成向量形式为：
+
+$$
+E_{\mathrm{e}}=K_1P_{\mathrm{e}}+K_2S_{\mathrm{e}}
+$$
+
+ES 有功参考变化率可以写成：
+
+$$
+\dot P_{\mathrm{e}}^{\mathrm{ref}}
+=
+-c_2L_{\mathrm{c}}E_{\mathrm{e}}
++
+c_0^{\mathrm{P}}\Gamma_{\mathrm{c},0}\Delta P
+$$
+
+其中，$c_2$ 是 ES 有功一致性控制增益，$c_0^{\mathrm{P}}$ 是有功全局偏差反馈增益。
+
+风电场有功偏差为：
+
+$$
+\Delta P
+=
+P_{\mathrm{wf}}^{\mathrm{ref}}-1_N^{\mathrm{T}}(P_{\mathrm{d}}+P_{\mathrm{e}})
+$$
+
+也就是：
+
+$$
+\Delta P
+=
+P_{\mathrm{wf}}^{\mathrm{ref}}-1_N^{\mathrm{T}}P_{\mathrm{d}}-1_N^{\mathrm{T}}P_{\mathrm{e}}
+$$
+
+将 $E_{\mathrm{e}}=K_1P_{\mathrm{e}}+K_2S_{\mathrm{e}}$ 和 $\Delta P$ 代入，可得：
+
+$$
+\dot P_{\mathrm{e}}^{\mathrm{ref}}
+=
+-c_2L_{\mathrm{c}}
+\left(
+K_1P_{\mathrm{e}}+K_2S_{\mathrm{e}}
+\right)
++
+c_0^{\mathrm{P}}\Gamma_{\mathrm{c},0}
+\left(
+P_{\mathrm{wf}}^{\mathrm{ref}}
+-1_N^{\mathrm{T}}P_{\mathrm{d}}-1_N^{\mathrm{T}}P_{\mathrm{e}}
+\right)
+$$
+
+整理为：
+
+$$
+\dot P_{\mathrm{e}}^{\mathrm{ref}}
+=
+
+-\left(
+c_2K_1L_{\mathrm{c}}
++
+c_0^{\mathrm{P}}\Gamma_{\mathrm{c},0}1_N^{\mathrm{T}}
+\right)P_{\mathrm{e}}
+-
+
+c_2K_2L_{\mathrm{c}}S_{\mathrm{e}}
++
+c_0^{\mathrm{P}}\Gamma_{\mathrm{c},0}
+\left(
+P_{\mathrm{wf}}^{\mathrm{ref}}
+-
+
+1_N^{\mathrm{T}}P_{\mathrm{d}}
+\right)
+$$
+
+该式说明，有功参考变化率 $\dot P_{\mathrm{e}}^{\mathrm{ref}}$ 与 $P_{\mathrm{e}}$ 和 $S_{\mathrm{e}}$ 线性相关，同时包含由风电场有功指令和 DFIG MPPT 有功输出形成的外部项：
+
+$$
+c_0^{\mathrm{P}}\Gamma_{\mathrm{c},0}
+\left(
+P_{\mathrm{wf}}^{\mathrm{ref}}
+-
+
+1_N^{\mathrm{T}}P_{\mathrm{d}}
+\right)
+$$
+
+其中，$P_{\mathrm{d}}$ 不是本文通信一致性控制直接调节的状态，而是由风速和 MPPT 决定的外部运行量。因此，在闭环收敛分析或偏差变量建模中，该项可以作为外部输入或工作点项处理。
+
+由此可见，$\dot P_{\mathrm{e}}^{\mathrm{ref}}$ 可以由状态变量 $P_{\mathrm{e}}$ 和 $S_{\mathrm{e}}$ 线性表示。
+
+---
+
+### 15.6 从附录 B 到 $u=Cx$
+
+根据前面的展开：
+
+$$
+\dot Q_{\mathrm{d}}^{\mathrm{ref}}
+$$
+
+可以由 $Q_{\mathrm{d}}$ 线性表示；
+
+$$
+\dot P_{\mathrm{e}}^{\mathrm{ref}}
+$$
+
+可以由 $P_{\mathrm{e}}$ 和 $S_{\mathrm{e}}$ 线性表示。
+
+而 $Q_{\mathrm{d}}$、$P_{\mathrm{e}}$ 和 $S_{\mathrm{e}}$ 都属于全场状态向量：
+
+$$
+x=
+\begin{bmatrix}
+Q_{\mathrm{d}}^{\mathrm{T}}&
+Q_{\mathrm{d},\mathrm{int}}^{\mathrm{T}}&
+i_{\mathrm{dr}}^{\mathrm{T}}&
+P_{\mathrm{e}}^{\mathrm{T}}&
+P_{\mathrm{e},\mathrm{int}}^{\mathrm{T}}&
+i_{\mathrm{L}}^{\mathrm{T}}&
+S_{\mathrm{e}}^{\mathrm{T}}
+\end{bmatrix}^{\mathrm{T}}
+$$
+
+因此，可以将全场输入统一写成：
+
+$$
+u=Cx
+$$
+
+其中，$C$ 的非零列主要对应 $Q_{\mathrm{d}}$、$P_{\mathrm{e}}$ 和 $S_{\mathrm{e}}$ 这些直接参与一致性控制的状态；对应 $Q_{\mathrm{d},\mathrm{int}}$、$i_{\mathrm{dr}}$、$P_{\mathrm{e},\mathrm{int}}$、$i_{\mathrm{L}}$ 的列通常为零。
+
+从物理意义看：
+
+$$
+C
+$$
+
+并不是单台设备的底层物理模型矩阵，而是由通信拓扑和一致性控制律共同形成的反馈矩阵。它把以下信息统一吸收进矩阵元素：
+
+1. 通信拉普拉斯矩阵 $L_{\mathrm{c}}$；
+2. DFIG 无功可调空间 $A_{\mathrm{d},i}$；
+3. ES 一致性权重 $K_1$ 和 $K_2$；
+4. leader 节点标记 $\Gamma_{\mathrm{c},0}$；
+5. 一致性控制增益 $c_1$、$c_2$；
+6. 全局偏差反馈增益 $c_0^{\mathrm{Q}}$、$c_0^{\mathrm{P}}$。
+
+---
+
+### 15.7 为什么 $C=\mathcal H(M_{\mathrm{c}})$
+
+论文进一步写道：
+
+$$
+C=\mathcal H(M_{\mathrm{c}})
+$$
+
+其含义是：反馈矩阵 $C$ 由通信邻接矩阵 $M_{\mathrm{c}}$ 通过某种线性映射得到。
+
+原因是通信拓扑首先决定邻接矩阵 $M_{\mathrm{c}}$，再由 $M_{\mathrm{c}}$ 得到度矩阵 $\Lambda_{\mathrm{c}}$ 和拉普拉斯矩阵：
+
+$$
+L_{\mathrm{c}}=\Lambda_{\mathrm{c}}-M_{\mathrm{c}}
+$$
+
+而在附录 B 的推导中，$\dot Q_{\mathrm{d}}^{\mathrm{ref}}$ 和 $\dot P_{\mathrm{e}}^{\mathrm{ref}}$ 都显式含有 $L_{\mathrm{c}}$。因此，通信拓扑改变时，$L_{\mathrm{c}}$ 改变；$L_{\mathrm{c}}$ 改变时，输入反馈矩阵 $C$ 改变；最终闭环矩阵：
+
+$$
+A_{\mathrm{cl}}=A-BC
+$$
+
+也会改变。
+
+这一逻辑链条可以写成：
+
+$$
+M_{\mathrm{c}}
+\rightarrow
+L_{\mathrm{c}}
+\rightarrow
+C
+\rightarrow
+A_{\mathrm{cl}}=A-BC
+\rightarrow
+\text{闭环收敛性能}
+$$
+
+所以，Section III-B 之后的通信网络优化，本质上就是通过选择合适的通信邻接矩阵 $M_{\mathrm{c}}$，改变反馈矩阵 $C$，从而改变闭环系统矩阵 $A_{\mathrm{cl}}$ 的特征值和收敛速度。
+
+---
+
+### 15.8 当前理解小结
+
+式 (9) 和式 (10) 的关系可以概括为：
+
+$$
+\boxed{
+\text{式 (9) 是单台 WT 的本地状态空间模型}
+}
+$$
+
+$$
+\boxed{
+\text{式 (10) 是所有 WT 堆叠后的全场闭环模型}
+}
+$$
+
+式 (9) 中：
+
+$$
+\dot x_i=A_ix_i+B_iu_i
+$$
+
+只是标准输入通道写法；而：
+
+$$
+u_i=-\sum_{j\in\vartheta_i}C_{ij}x_j
+$$
+
+说明输入本身是负反馈一致性控制。因此代入后仍然得到负反馈闭环。
+
+式 (10) 中，论文将输入重新整理为：
+
+$$
+u=Cx
+$$
+
+所以全场状态方程写成：
+
+$$
+\dot x=Ax-Bu=(A-BC)x
+$$
+
+附录 B 的作用就是证明：
+
+$$
+u=
+\begin{bmatrix}
+(\dot Q_{\mathrm{d}}^{\mathrm{ref}})^{\mathrm{T}}&
+(\dot P_{\mathrm{e}}^{\mathrm{ref}})^{\mathrm{T}}
+\end{bmatrix}^{\mathrm{T}}
+$$
+
+可以由状态向量 $x$ 线性表示，从而得到：
+
+$$
+u=Cx
+$$
+
+进一步，由于 $C$ 由通信拉普拉斯矩阵 $L_{\mathrm{c}}$ 决定，而 $L_{\mathrm{c}}$ 又由通信邻接矩阵 $M_{\mathrm{c}}$ 决定，所以：
+
+$$
+C=\mathcal H(M_{\mathrm{c}})
+$$
+
+这就是论文能够把通信拓扑优化问题转化为闭环状态矩阵优化问题的关键。
+
+## 16. 收敛速度目标的理解：闭环矩阵、矩阵指数与状态范数
+
+Section III-B 中，论文提出通信网络优化需要同时考虑三个目标：控制收敛速度、通信稀疏性和通信生存性。其中第一个目标是提高控制收敛速度，以便在风速剧烈波动时更快地平滑风电场输出并跟踪调度指令。
+
+由前文可知，整个风电场的闭环模型已经被写成：
+
+$$
+\dot{x}=A_{\mathrm{cl}}x
+$$
+
+其中：
+
+$$
+A_{\mathrm{cl}}=A-BC
+$$
+
+这里 $A_{\mathrm{cl}}$ 是整个风电场分布式控制系统的闭环状态矩阵。由于通信拓扑 $M_{\mathrm{c}}$ 会影响反馈矩阵 $C$，因此也会影响闭环矩阵 $A_{\mathrm{cl}}$。
+
+---
+
+### 16.1 线性矩阵微分方程的解
+
+标量一阶线性微分方程：
+
+$$
+\dot{x}=ax
+$$
+
+的解为：
+
+$$
+x(t)=e^{a(t-t_0)}x_0
+$$
+
+矩阵状态方程：
+
+$$
+\dot{x}=A_{\mathrm{cl}}x
+$$
+
+可以看成它的推广。其解为：
+
+$$
+x(t)=e^{A_{\mathrm{cl}}(t-t_0)}x_0
+$$
+
+其中，$e^{A_{\mathrm{cl}}(t-t_0)}$ 称为矩阵指数。它描述了初始状态 $x_0$ 在闭环系统矩阵 $A_{\mathrm{cl}}$ 作用下随时间演化的过程。
+
+如果 $A_{\mathrm{cl}}$ 可以对角化，即：
+
+$$
+A_{\mathrm{cl}}=V\Lambda V^{-1}
+$$
+
+则有：
+
+$$
+e^{A_{\mathrm{cl}}t}
+=
+Ve^{\Lambda t}V^{-1}
+$$
+
+其中：
+
+$$
+e^{\Lambda t}
+=
+
+\operatorname{diag}
+\left(
+e^{\lambda_1t},
+e^{\lambda_2t},
+\cdots,
+e^{\lambda_nt}
+\right)
+$$
+
+因此，闭环系统可以理解为由多个模态叠加而成，每个模态大致按照 $e^{\lambda_it}$ 的形式变化。
+
+---
+
+### 16.2 为什么特征值实部决定收敛速度
+
+对于某个特征值 $\lambda_i$，若其实部满足：
+
+$$
+\operatorname{Re}(\lambda_i)<0
+$$
+
+则对应模态会随时间衰减；若：
+
+$$
+\operatorname{Re}(\lambda_i)>0
+$$
+
+则对应模态会随时间增长。
+
+因此，闭环系统渐近稳定的基本条件是：
+
+$$
+\operatorname{Re}(\lambda_i(A_{\mathrm{cl}}))<0,\quad i=1,2,\cdots,n
+$$
+
+论文定义：
+
+$$
+k_{\max} = \operatorname{Re} \left\{ \lambda_{\max}(A_{\mathrm{cl}}) \right\}
+$$
+
+这里的 $k_{\max}$ 可以理解为 $A_{\mathrm{cl}}$ 所有特征值中最靠近虚轴的那个实部，也就是最慢衰减模态对应的实部。
+
+如果：
+
+$$
+k_{\max}<0
+$$
+
+则所有模态最终都会衰减，系统渐近稳定。
+
+如果进一步要求：
+
+$$
+k_{\max}<-v_{\mathrm{spe}}
+$$
+
+则表示所有特征值都位于复平面直线 $-v_{\mathrm{spe}}$ 的左侧，系统收敛速度至少满足给定指标 $v_{\mathrm{spe}}$。
+
+因此，论文希望通过设计通信拓扑 $M_{\mathrm{c}}$ 来改变 $C$，进而改变：
+
+$$
+A_{\mathrm{cl}}=A-BC
+$$
+
+的特征值分布，使闭环系统具有更快的收敛速度。
+
+---
+
+### 16.3 状态向量的 2-范数含义
+
+论文中使用了状态向量的 2-范数：
+
+$$
+\|x(t)\|_{\ell_2}
+$$
+
+它也常写作：
+
+$$
+\|x(t)\|_2
+$$
+
+对于向量：
+
+$$
+x=
+\begin{bmatrix}
+x_1&
+x_2&
+\cdots&
+x_n
+\end{bmatrix}^{\mathrm{T}}
+$$
+
+其 2-范数定义为：
+
+$$
+\|x\|_2
+=
+
+\sqrt{
+x_1^2+x_2^2+\cdots+x_n^2
+}
+$$
+
+在本文中，$x$ 包含风电场中所有 WT/ES 的状态，例如 $Q_{\mathrm{d}}$、$P_{\mathrm{e}}$、$S_{\mathrm{e}}$、PI 积分状态和电流状态等。因此，$\|x(t)\|_2$ 可以理解为整个闭环系统状态偏差的整体大小。
+
+需要注意，不同状态量可能具有不同物理单位，因此普通 2-范数本身不一定直接对应某个物理能量。后文引入加权二次型 $x^{\mathrm{T}}Qx$，就是为了通过权重矩阵 $Q$ 对不同状态的重要性进行调整。
+
+---
+
+### 16.4 式 (11) 的直观含义
+
+论文式 (11) 用状态范数说明闭环收敛速度与最右侧特征值实部的关系，可理解为：
+
+$$
+\|x(t)\|_{\ell_2}
+\leq
+e^{k_{\max}(t-t_0)}
+\|x_0\|_{\ell_2},\quad t\geq t_0
+$$
+
+这个式子的直观含义是：闭环状态向量的整体大小由指数项控制，而指数项的衰减速度由 $k_{\max}$ 决定。
+
+如果 $k_{\max}<0$，指数项随时间衰减；如果 $k_{\max}$ 更负，指数项衰减得更快。因此，式 (11) 的作用不是引入新的目标，而是把“闭环极点位置”和“状态衰减快慢”联系起来。
+
+---
+
+### 16.5 关于该范数估计的一个数学细节
+
+从工程控制角度看，用最右侧特征值实部 $k_{\max}$ 描述收敛速度是很常见的做法。它主要刻画系统的渐近模态衰减速度。
+
+但如果从严格矩阵分析角度看，状态 2-范数的瞬时增长或衰减还与矩阵 $A_{\mathrm{cl}}$ 的非正规性有关。如果 $A_{\mathrm{cl}}$ 的特征向量不正交，即矩阵具有明显非正规性，那么即使所有特征值实部都为负，状态 2-范数也可能在短时间内出现暂态放大。
+
+更严格地估计状态范数时，常引入矩阵的对数范数，也称矩阵测度。对于 2-范数，对数范数为：
+
+$$
+\mu_2(A_{\mathrm{cl}})
+=
+
+\lambda_{\max}
+\left(
+\frac{
+A_{\mathrm{cl}}+A_{\mathrm{cl}}^{\mathrm{T}}
+}{2}
+\right)
+$$
+
+它满足：
+
+$$
+\frac{\mathrm{d}}{\mathrm{d}t}\|x(t)\|_2
+\leq
+\mu_2(A_{\mathrm{cl}})
+\|x(t)\|_2
+$$
+
+因此可以得到严格的范数上界：
+
+$$
+\|x(t)\|_2
+\leq
+e^{\mu_2(A_{\mathrm{cl}})(t-t_0)}
+\|x_0\|_2
+$$
+
+一般而言：
+
+$$
+k_{\max}
+\leq
+\mu_2(A_{\mathrm{cl}})
+$$
+
+所以对数范数给出的范数衰减估计更直接、更保守；而 $k_{\max}$ 更常用于描述闭环极点位置和渐近收敛速度。
+
+---
+
+### 16.6 Lemma 1 的作用：把收敛速度要求转化为可优化指标
+
+前文已经说明，收敛速度要求可以写成：
+
+$$
+k_{\max}<-v_{\mathrm{spe}}
+$$
+
+也就是希望闭环矩阵 $A_{\mathrm{cl}}$ 的所有特征值都位于复平面直线 $-v_{\mathrm{spe}}$ 的左侧。
+
+但是，在通信拓扑优化中，直接把特征值位置作为约束并不方便。Lemma 1 的作用就是引入一个更容易放进优化问题的表达：用带指数权重的二次积分指标来反映该收敛速度要求。
+
+因此，Lemma 1 可以理解为：
+
+$$
+\boxed{
+\text{把“特征值位于 }-v_{\mathrm{spe}}\text{ 左侧”的收敛速度要求，转化为一个可优化的积分型二次指标。}
+}
+$$
+
+---
+
+### 16.7 为什么构造带指数权重的积分指标
+
+如果不指定收敛速度，常见的二次积分指标为：
+
+$$
+\int_0^{\infty}
+\left[
+x^{\mathrm{T}}(t)Qx(t)
++
+u^{\mathrm{T}}(t)Ru(t)
+\right]\,\mathrm{d}t
+$$
+
+它关心状态偏差和控制输入的累计代价，但本身不直接规定状态必须以多快速度衰减。
+
+为了把收敛速度要求也放进指标中，论文式 (12) 在二次项前加入指数权重：
+
+$$
+\int_0^{\infty}
+e^{2v_{\mathrm{spe}}t}
+\left[
+x^{\mathrm{T}}(t)Qx(t)
++
+u^{\mathrm{T}}(t)Ru(t)
+\right]\,\mathrm{d}t
+$$
+
+该式可以看作带收敛速度要求的 LQR 型二次性能指标 [28，Anderson and Moore, 1971, “Linear Optimal Control”]。这里的 “LQR 型” 只是指目标函数具有“状态二次项 + 输入二次项”的结构；本文并不是直接求解标准 LQR 最优反馈，而是用这种指标评价通信拓扑诱导出的闭环性能。
+
+> 注：标准 LQR 问题通常是：给定线性系统 $\dot{x}=Ax-Bu$，在反馈矩阵 $C$ 可以自由选择的情况下，最小化 $\int_0^\infty (x^{\mathrm{T}}Qx+u^{\mathrm{T}}Ru)\,\mathrm{d}t$，并由 Riccati 方程求出最优反馈 $u=C_{\mathrm{LQR}}x$。本文与它不同：反馈矩阵 $C$ 不是自由连续变量，而是由通信拓扑 $M_{\mathrm{c}}$ 决定。因此这里说 “LQR 型”，重点是借用这种二次性能指标结构，而不是说论文在直接做标准 LQR 控制器设计。
+
+指数权重的作用是放大后期误差：如果系统状态衰减不够快，即使最终趋于零，乘上 $e^{2v_{\mathrm{spe}}t}$ 后，积分值仍可能变大甚至发散。
+
+假设某个状态模态近似满足：
+
+$$
+x(t)\sim e^{\lambda t}
+$$
+
+则二次型大致满足：
+
+$$
+x^{\mathrm{T}}(t)Qx(t)\sim e^{2\operatorname{Re}(\lambda)t}
+$$
+
+乘上指数权重后得到：
+
+$$
+e^{2v_{\mathrm{spe}}t}
+e^{2\operatorname{Re}(\lambda)t}
+=
+
+e^{2\left(\operatorname{Re}(\lambda)+v_{\mathrm{spe}}\right)t}
+$$
+
+若希望该项在 $[0,\infty)$ 上可积，则需要：
+
+$$
+\operatorname{Re}(\lambda)+v_{\mathrm{spe}}<0
+$$
+
+也就是：
+
+$$
+\operatorname{Re}(\lambda)<-v_{\mathrm{spe}}
+$$
+
+这正好对应论文希望满足的特征值位置要求。因此，指数权重的意义可以概括为：
+
+$$
+\boxed{
+e^{2v_{\mathrm{spe}}t}
+\text{ 用来惩罚衰减不够快的状态和输入，从而强制闭环系统具有至少 }v_{\mathrm{spe}}\text{ 的指数收敛速度。}
+}
+$$
+
+---
+
+### 16.8 为什么指数是 $2v_{\mathrm{spe}}$
+
+这里的系数 $2$ 来自二次型。若希望状态本身至少按照：
+
+$$
+e^{-v_{\mathrm{spe}}t}
+$$
+
+衰减，那么状态二次型大致按照：
+
+$$
+e^{-2v_{\mathrm{spe}}t}
+$$
+
+衰减。
+
+因此，指标中使用 $e^{2v_{\mathrm{spe}}t}$，是为了和“状态平方”产生的二倍指数阶数匹配，用来检验状态是否衰减得快于 $e^{-v_{\mathrm{spe}}t}$。等价地，定义加权状态：
+
+$$
+z(t)=e^{v_{\mathrm{spe}}t}x(t)
+$$
+
+则有：
+
+$$
+z^{\mathrm{T}}Qz
+=
+
+e^{2v_{\mathrm{spe}}t}x^{\mathrm{T}}Qx
+$$
+
+所以，式 (12) 中的指数权重也可以理解为：不是直接对 $x(t)$ 做普通二次积分，而是对加权后的状态 $z(t)$ 做普通二次积分。
+
+---
+
+### 16.9 指数权重与矩阵平移的关系
+
+继续使用加权状态：
+
+$$
+z(t)=e^{v_{\mathrm{spe}}t}x(t)
+$$
+
+由闭环系统：
+
+$$
+\dot{x}=A_{\mathrm{cl}}x
+$$
+
+可得：
+
+$$
+\dot{z}
+=
+v_{\mathrm{spe}}e^{v_{\mathrm{spe}}t}x
++
+e^{v_{\mathrm{spe}}t}\dot{x}
+$$
+
+代入 $\dot{x}=A_{\mathrm{cl}}x$，得到：
+
+$$
+\dot{z}
+=
+\left(A_{\mathrm{cl}}+v_{\mathrm{spe}}I\right)z
+$$
+
+因此，要求加权状态 $z(t)$ 稳定，相当于要求：
+
+$$
+A_{\mathrm{cl}}+v_{\mathrm{spe}}I
+$$
+
+是 Hurwitz 矩阵。
+
+它的特征值为原闭环特征值整体右移 $v_{\mathrm{spe}}$，因此稳定条件为：
+
+$$
+\operatorname{Re}
+\left(
+\lambda_i(A_{\mathrm{cl}})+v_{\mathrm{spe}}
+\right)<0
+$$
+
+也就是：
+
+$$
+\operatorname{Re}
+\left(
+\lambda_i(A_{\mathrm{cl}})
+\right)<-v_{\mathrm{spe}}
+$$
+
+所以，指数加权和矩阵平移其实是同一件事的两种写法：
+
+$$
+\boxed{
+\text{对积分加 }e^{2v_{\mathrm{spe}}t}
+\Longleftrightarrow
+\text{对闭环矩阵看 }A_{\mathrm{cl}}+v_{\mathrm{spe}}I
+}
+$$
+
+---
+
+### 16.10 为什么性能指标中同时包含状态项和输入项
+
+式 (12) 中的积分同时包含两个二次代价项：
+
+$$
+x^{\mathrm{T}}(t)Qx(t)
+$$
+
+和：
+
+$$
+u^{\mathrm{T}}(t)Ru(t)
+$$
+
+其中，$x^{\mathrm{T}}Qx$ 是状态代价，用于惩罚闭环状态偏差。本文状态 $x$ 中包含 DFIG 无功功率、ES 有功功率、SOC、PI 积分状态和电流内环状态等，因此该项表达的是“状态不要长时间偏离平衡点”。
+
+$u^{\mathrm{T}}Ru$ 是控制输入代价，用于惩罚控制动作过大。本文中：
+
+$$
+u=
+\begin{bmatrix}
+(\dot Q_{\mathrm{d}}^{\mathrm{ref}})^{\mathrm{T}}&
+(\dot P_{\mathrm{e}}^{\mathrm{ref}})^{\mathrm{T}}
+\end{bmatrix}^{\mathrm{T}}
+$$
+
+因此，$u^{\mathrm{T}}Ru$ 可以理解为惩罚 DFIG 无功参考和 ES 有功参考变化过快、控制动作过强。
+
+如果只考虑状态项，优化可能倾向于使用很大的控制输入来换取快速收敛；但实际系统中，参考指令变化过大可能带来执行压力或功率冲击。因此，论文同时考虑状态代价和输入代价，以平衡：
+
+$$
+\text{快速收敛}
+$$
+
+和：
+
+$$
+\text{控制动作不过大}
+$$
+
+---
+
+### 16.11 从式 (12) 到式 (13)
+
+由全场闭环模型可知：
+
+$$
+u=Cx
+$$
+
+所以输入代价可以直接合并到状态二次型中：
+
+$$
+u^{\mathrm{T}}Ru
+=
+(Cx)^{\mathrm{T}}R(Cx)
+=
+x^{\mathrm{T}}C^{\mathrm{T}}RCx
+$$
+
+因此，式 (12) 可以改写为：
+
+$$
+\int_0^{\infty}
+e^{2v_{\mathrm{spe}}t}
+x^{\mathrm{T}}(t)
+\left(
+Q+C^{\mathrm{T}}RC
+\right)
+x(t)\,\mathrm{d}t
+$$
+
+也就是论文式 (13) 中的收敛速度目标函数：
+
+$$
+f_{\mathrm{CR}}
+=
+
+\int_0^{\infty}
+e^{2v_{\mathrm{spe}}t}
+x^{\mathrm{T}}(t)
+\left(
+Q+C^{\mathrm{T}}RC
+\right)
+x(t)\,\mathrm{d}t
+$$
+
+所以，式 (13) 不是新的物理假设，而是将 $u=Cx$ 代入式 (12) 后，把状态代价和输入代价合并成一个状态二次型。
+
+可以理解为：
+
+$$
+\boxed{
+\text{式 (12)：状态代价 }x^{\mathrm{T}}Qx+\text{控制输入代价 }u^{\mathrm{T}}Ru
+}
+$$
+
+$$
+\boxed{
+\text{式 (13)：由于 }u=Cx\text{，将控制输入代价也合并为状态二次型}
+}
+$$
+
+---
+
+### 16.12 $f_{\mathrm{CR}}$ 的矩阵方程背景：从 LQR 型指标到 Lyapunov 方程
+
+论文给出的收敛速度目标可以写成：
+
+$$
+f_{\mathrm{CR}}
+=
+\int_0^{\infty}
+e^{2v_{\mathrm{spe}}t}
+x^{\mathrm{T}}(t)
+\left(
+Q+C^{\mathrm{T}}RC
+\right)
+x(t)\,\mathrm{d}t
+$$
+
+它表面上没有显式出现 $A_{\mathrm{cl}}$，但状态轨迹 $x(t)$ 由闭环系统决定：
+
+$$
+\begin{cases}
+\dot{x}=A_{\mathrm{cl}}x,\\
+A_{\mathrm{cl}}=A-BC
+\end{cases}
+$$
+
+因此，$A_{\mathrm{cl}}$ 是通过 $x(t)$ 间接进入 $f_{\mathrm{CR}}$ 的。通信拓扑 $M_{\mathrm{c}}$ 改变时，$C$、$A_{\mathrm{cl}}$ 和状态轨迹都会改变，最终改变该积分指标。
+
+这里需要特别区分两种视角：
+
+$$
+\boxed{
+\text{标准 LQR：直接把反馈矩阵 }C\text{ 作为连续设计变量来优化。}
+}
+$$
+
+$$
+\boxed{
+\text{本文通信拓扑优化：把 }M_{\mathrm{c}}\text{ 作为设计变量，并通过 }C=\mathcal{H}(M_{\mathrm{c}})\text{ 间接改变 }C\text{。}
+}
+$$
+
+所以，本文不是在“已知一个固定 $C$ 后再优化 $f_{\mathrm{CR}}$”；更准确地说，是在可行通信拓扑集合中改变 $M_{\mathrm{c}}$，让其诱导出的 $C$ 使 $f_{\mathrm{CR}}$ 尽可能小。
+
+---
+
+#### 16.12.1 普通 LQR 型二次性能指标
+
+先不考虑指定收敛速度。对于线性系统：
+
+$$
+\dot{x}=Ax-Bu
+$$
+
+普通 LQR 型二次指标为：
+
+$$
+\int_0^\infty
+\left(
+x^{\mathrm{T}}Qx+u^{\mathrm{T}}Ru
+\right)\,\mathrm{d}t
+$$
+
+其中，$Q\succeq 0$，$R\succ 0$。$x^{\mathrm{T}}Qx$ 惩罚状态偏差，$u^{\mathrm{T}}Ru$ 惩罚控制输入。若 $u=Cx$ 可以自由设计，标准 LQR 就是在这些权重下寻找稳定且代价最小的反馈矩阵 $C$。
+
+> 注：$Q\succeq 0$ 表示 $Q$ 是半正定矩阵，即对任意状态向量 $x$ 都有 $x^{\mathrm{T}}Qx\geq 0$，允许某些状态方向不被惩罚；$R\succ 0$ 表示 $R$ 是正定矩阵，即对任意非零输入 $u$ 都有 $u^{\mathrm{T}}Ru>0$，表示控制输入只要不为零就会产生正代价。
+
+---
+
+#### 16.12.2 普通 LQR 对应的代数 Riccati 方程
+
+对于系统：
+
+$$
+\dot{x}=Ax-Bu
+$$
+
+和性能指标：
+
+$$
+\int_0^\infty
+\left(
+x^{\mathrm{T}}Qx+u^{\mathrm{T}}Ru
+\right)\,\mathrm{d}t
+$$
+
+对应的连续时间代数 Riccati 方程可以写成：
+
+$$
+A^{\mathrm{T}}P+PA-PBR^{-1}B^{\mathrm{T}}P+Q=0
+$$
+
+其中，$P=P^{\mathrm{T}}\succeq 0$ 是 Riccati 方程的稳定化解。在本文采用的符号约定 $\dot{x}=Ax-Bu$ 下，最优状态反馈为：
+
+$$
+\begin{cases}
+u=C_{\mathrm{LQR}}x,\\
+C_{\mathrm{LQR}}=R^{-1}B^{\mathrm{T}}P
+\end{cases}
+$$
+
+于是闭环系统为：
+
+$$
+\dot{x}
+=
+\left(A-BC_{\mathrm{LQR}}\right)x
+$$
+
+这说明，在标准 LQR 中，Riccati 方程给出了一个连续自由反馈增益 $C_{\mathrm{LQR}}$，使系统在状态偏差和控制输入之间取得折中。
+
+---
+
+#### 16.12.3 引入指定收敛速度后的矩阵平移
+
+论文不仅希望闭环系统稳定，还希望其收敛速度快于给定值 $v_{\mathrm{spe}}$，也就是：
+
+$$
+\operatorname{Re}
+\left(
+\lambda_i(A_{\mathrm{cl}})
+\right)
+<
+-v_{\mathrm{spe}}
+$$
+
+指数权重可以通过加权状态解释。定义：
+
+$$
+\begin{cases}
+z(t)=e^{v_{\mathrm{spe}}t}x(t),\\
+w(t)=e^{v_{\mathrm{spe}}t}u(t)
+\end{cases}
+$$
+
+若原系统为 $\dot{x}=Ax-Bu$，则：
+
+$$
+\dot{z}
+=
+\left(A+v_{\mathrm{spe}}I\right)z-Bw
+$$
+
+记：
+
+$$
+A_{\mathrm{v}}=A+v_{\mathrm{spe}}I
+$$
+
+则带指数权重的 LQR 型问题可以转化为移位系统：
+
+$$
+\dot{z}=A_{\mathrm{v}}z-Bw
+$$
+
+上的普通 LQR 问题。此时对应的 Riccati 方程为：
+
+$$
+A_{\mathrm{v}}^{\mathrm{T}}P
++PA_{\mathrm{v}}
+-PBR^{-1}B^{\mathrm{T}}P
++Q
+=0
+$$
+
+若该 Riccati 方程存在稳定化解，则：
+
+$$
+C_{\mathrm{LQR}}=R^{-1}B^{\mathrm{T}}P
+$$
+
+会使移位闭环矩阵 $A_{\mathrm{v}}-BC_{\mathrm{LQR}}$ 稳定。换回原系统，就是 $A-BC_{\mathrm{LQR}}$ 的特征值实部小于 $-v_{\mathrm{spe}}$。
+
+因此，指数权重 $e^{2v_{\mathrm{spe}}t}$ 的作用可以理解为：通过矩阵平移 $A\rightarrow A+v_{\mathrm{spe}}I$，将“收敛速度快于 $v_{\mathrm{spe}}$”转化为移位系统稳定性问题。
+
+---
+
+#### 16.12.4 本文与标准 LQR 的区别
+
+虽然论文式 (12)–(13) 具有 LQR 型性能指标结构，但本文并不是直接求解标准 LQR 反馈矩阵。
+
+标准 LQR 中，反馈矩阵可以自由取为：
+
+$$
+C_{\mathrm{LQR}}
+=
+R^{-1}B^{\mathrm{T}}P
+$$
+
+但本文中的反馈矩阵必须由通信拓扑决定：
+
+$$
+C=\mathcal{H}(M_{\mathrm{c}})
+$$
+
+而通信邻接矩阵 $M_{\mathrm{c}}$ 又受到以下限制：
+
+1. 邻接矩阵元素为 $0$ 或 $1$；
+2. 通信图必须连通；
+3. 通信链路数量应尽可能少；
+4. 节点度分布需要兼顾通信生存性；
+5. $C$ 的结构必须符合一致性控制律和 leader-follower 结构。
+
+因此，本文不能简单地令 $C=C_{\mathrm{LQR}}$，而是要在可行通信拓扑集合中寻找合适的 $M_{\mathrm{c}}$。每一个候选拓扑都会诱导出一个反馈矩阵：
+
+$$
+C=\mathcal{H}(M_{\mathrm{c}})
+$$
+
+再由这个 $C$ 形成闭环矩阵：
+
+$$
+A_{\mathrm{cl}}=A-BC
+$$
+
+然后用 $f_{\mathrm{CR}}$ 评价其收敛性能。也就是说，优化变量不是连续的 $C$，而是受通信约束的 $M_{\mathrm{c}}$；$C$ 是由 $M_{\mathrm{c}}$ 间接得到的结果。
+
+---
+
+#### 16.12.5 给定通信拓扑时与 Lyapunov 方程的关系
+
+如果通信拓扑 $M_{\mathrm{c}}$ 已经给定，则反馈矩阵 $C$ 也就确定了。此时 $f_{\mathrm{CR}}$ 不再是用来“设计 $C$”的目标，而是用来“评价该拓扑对应闭环性能”的指标。此时：
+
+$$
+A_{\mathrm{cl}}=A-BC
+$$
+
+令：
+
+$$
+A_{\mathrm{cl},v}
+=
+A_{\mathrm{cl}}+v_{\mathrm{spe}}I
+$$
+
+并令：
+
+$$
+Q_C
+=
+Q+C^{\mathrm{T}}RC
+$$
+
+用 $z(t)=e^{v_{\mathrm{spe}}t}x(t)$ 表示加权状态，则：
+
+$$
+\begin{cases}
+f_{\mathrm{CR}}
+=
+\displaystyle
+\int_0^{\infty}
+z^{\mathrm{T}}(t)Q_Cz(t)\,\mathrm{d}t,\\
+\dot{z}=A_{\mathrm{cl},v}z
+\end{cases}
+$$
+
+若 $A_{\mathrm{cl},v}$ 是 Hurwitz 矩阵，则该积分可以通过连续时间 Lyapunov 方程评价。令 $P=P^{\mathrm{T}}\succeq 0$，则：
+
+$$
+A_{\mathrm{cl},v}^{\mathrm{T}}P
++PA_{\mathrm{cl},v}
++Q_C
+=0
+$$
+
+也就是：
+
+$$
+\left(A_{\mathrm{cl}}+v_{\mathrm{spe}}I\right)^{\mathrm{T}}P
++P\left(A_{\mathrm{cl}}+v_{\mathrm{spe}}I\right)
++Q+C^{\mathrm{T}}RC
+=0
+$$
+
+对于给定初始状态 $x_0$，性能指标可写成：
+
+$$
+f_{\mathrm{CR}}=x_0^{\mathrm{T}}Px_0
+$$
+
+如果考虑一组初始状态，其协方差为 $\Gamma$，则常可写成：
+
+$$
+\operatorname{tr}(P\Gamma)
+$$
+
+这里的 $\Gamma$ 可以理解为初始状态 $x_0$ 的协方差矩阵，用来描述“一组可能初始扰动”的分布范围和方向。通常这里默认 $x_0$ 是零均值的偏差变量；如果初始偏差均值不为零，还需要额外考虑均值项。如果单个初始状态的代价是：
+
+$$
+f_{\mathrm{CR}}=x_0^{\mathrm{T}}Px_0
+$$
+
+那么对一组随机初始状态取平均时，有：
+
+$$
+\mathbb{E}
+\left[
+x_0^{\mathrm{T}}Px_0
+\right]
+=
+\operatorname{tr}
+\left(
+P\Gamma
+\right)
+$$
+
+其意义是：不再只评价某一个特定初始扰动 $x_0$ 下的闭环性能，而是评价一组可能扰动下的平均闭环性能。如果取 $\Gamma=I$，则该指标退化为 $\operatorname{tr}(P)$，可以理解为各个状态方向上闭环代价的总和；如果某些状态方向更容易发生扰动，或更值得关注，就可以在 $\Gamma$ 中给这些方向更大的权重。
+
+因此，从“给定拓扑后评价闭环性能”的角度看，$f_{\mathrm{CR}}$ 更直接对应 Lyapunov 方程；只有在“反馈增益完全自由、需要求最优反馈”时，才对应 Riccati 方程。
+
+放回本文的通信网络优化问题中，实际流程可以理解为：
+
+$$
+\boxed{
+\text{给定候选 }M_{\mathrm{c}}
+\rightarrow
+C=\mathcal{H}(M_{\mathrm{c}})
+\rightarrow
+A_{\mathrm{cl}}=A-BC
+\rightarrow
+\text{用 Lyapunov 方程计算 }f_{\mathrm{CR}}
+}
+$$
+
+然后在不同候选通信拓扑之间比较 $f_{\mathrm{CR}}$，选出收敛性能更好的拓扑。
+
+---
+
+#### 16.12.6 一个极简数值例子：$M_{\mathrm{c}}$ 如何影响 $f_{\mathrm{CR}}$
+
+为了更直观看到通信拓扑如何影响最终指标，可以构造一个非常简化的三节点一致性模型。这里不复现论文中的 DFIG/ES 完整状态空间模型，而只保留以下逻辑链条：
+
+$$
+M_{\mathrm{c}}
+\rightarrow
+L_{\mathrm{c}}
+\rightarrow
+C
+\rightarrow
+A_{\mathrm{cl}}
+\rightarrow
+f_{\mathrm{CR}}
+$$
+
+示例中令：
+
+$$
+A=0,\quad B=I,\quad C=L_{\mathrm{c}}+G_{\mathrm{pin}}
+$$
+
+其中，$G_{\mathrm{pin}}=\operatorname{diag}(1,0,0)$ 表示第 1 个节点被 leader pinning。这里把 pinning 矩阵记为 $G_{\mathrm{pin}}$，是为了避免和前面表示初始状态协方差的 $\Gamma$ 混淆。
+
+对应的 Python 代码可以写成：
+
+```python
+import numpy as np
+from scipy.linalg import solve_continuous_lyapunov, eigvals
+
+
+def calc_f_CR(Mc, v_spe=0.18, r=0.02):
+    n = Mc.shape[0]
+
+    Lambda = np.diag(Mc.sum(axis=1))
+    Lc = Lambda - Mc
+
+    G_pin = np.diag([1, 0, 0])
+
+    A = np.zeros((n, n))
+    B = np.eye(n)
+    C = Lc + G_pin
+
+    Acl = A - B @ C
+    Abar = Acl + v_spe * np.eye(n)
+
+    Q = np.eye(n)
+    R = r * np.eye(n)
+    Qcl = Q + C.T @ R @ C
+
+    eig_Acl = eigvals(Acl)
+
+    if np.max(np.real(eigvals(Abar))) >= 0:
+        return Lc, C, eig_Acl, np.inf
+
+    P = solve_continuous_lyapunov(Abar.T, -Qcl)
+
+    x0 = np.array([1.0, -1.0, 0.5])
+    f_CR = float(x0.T @ P @ x0)
+
+    return Lc, C, eig_Acl, f_CR
+```
+
+用三种通信拓扑测试：
+
+```python
+Mc_chain = np.array([
+    [0, 1, 0],
+    [1, 0, 1],
+    [0, 1, 0]
+], dtype=float)
+
+Mc_complete = np.array([
+    [0, 1, 1],
+    [1, 0, 1],
+    [1, 1, 0]
+], dtype=float)
+
+Mc_disconnected = np.array([
+    [0, 1, 0],
+    [1, 0, 0],
+    [0, 0, 0]
+], dtype=float)
+```
+
+在本机 `D:\CondaData\envs\rl-grid\python.exe` 环境中计算得到：
+
+| 拓扑 | $\operatorname{Re}(\lambda(A_{\mathrm{cl}}))$ | $f_{\mathrm{CR}}$ |
+|---|---:|---:|
+| chain | $[-3.246980,\ -1.554958,\ -0.198062]$ | $0.752468$ |
+| complete | $[-3.732051,\ -3.000000,\ -0.267949]$ | $0.554915$ |
+| disconnected | $[-2.618034,\ -0.381966,\ 0.000000]$ | $\infty$ |
+
+这个例子说明：
+
+1. 不同 $M_{\mathrm{c}}$ 会产生不同的 $L_{\mathrm{c}}$；
+2. 不同 $L_{\mathrm{c}}$ 会改变 $C=L_{\mathrm{c}}+G_{\mathrm{pin}}$；
+3. 不同 $C$ 会改变闭环矩阵 $A_{\mathrm{cl}}=A-BC$；
+4. 如果 $A_{\mathrm{cl}}+v_{\mathrm{spe}}I$ 不是 Hurwitz 矩阵，则带指数权重的积分发散，$f_{\mathrm{CR}}=\infty$；
+5. 在这个极简模型中，complete 拓扑比 chain 拓扑得到更小的 $f_{\mathrm{CR}}$，说明其闭环收敛性能指标更好。
+
+需要注意，这个例子只是为了说明机制，不是论文完整模型的复现。真实论文中，$A$、$B$ 和 $C$ 来自 DFIG/ES 的状态空间模型、一致性控制律、leader-follower 结构以及通信拓扑约束；这里的 $A=0$、$B=I$、$C=L_{\mathrm{c}}+G_{\mathrm{pin}}$ 只是为了把“拓扑改变 $\rightarrow$ 指标改变”的路径单独展示出来。
+
+---
+
+### 16.13 当前理解小结
+
+论文中的收敛速度目标可以概括为：
+
+$$
+\boxed{
+\text{它是带指定指数收敛速度要求的 LQR 型闭环性能指标。}
+}
+$$
+
+式 (12) 到式 (13) 的关键只是将：
+
+$$
+u=Cx
+$$
+
+代入原来的状态项与输入项二次指标，从而得到：
+
+$$
+f_{\mathrm{CR}}
+=
+\int_0^{\infty}
+e^{2v_{\mathrm{spe}}t}
+x^{\mathrm{T}}(t)
+\left(
+Q+C^{\mathrm{T}}RC
+\right)
+x(t)\,\mathrm{d}t
+$$
+
+其中，指数权重：
+
+$$
+e^{2v_{\mathrm{spe}}t}
+$$
+
+等价于引入加权状态 $z(t)=e^{v_{\mathrm{spe}}t}x(t)$，从而把“收敛速度快于 $v_{\mathrm{spe}}$”转化为移位闭环矩阵：
+
+$$
+A_{\mathrm{cl}}+v_{\mathrm{spe}}I
+$$
+
+的稳定性要求。
+
+Riccati 方程和 Lyapunov 方程的关系可以理解为：
+
+$$
+\boxed{
+\text{反馈增益 }C\text{ 自由时，对应 Riccati 方程直接求最优 }C_{\mathrm{LQR}}\text{。}
+}
+$$
+
+$$
+\boxed{
+\text{拓扑 }M_{\mathrm{c}}\text{ 给定时，}C=\mathcal{H}(M_{\mathrm{c}})\text{ 已确定，对应 Lyapunov 方程评价 }f_{\mathrm{CR}}\text{。}
+}
+$$
+
+若反馈增益完全自由，则可对移位系统使用标准 LQR，对应 Riccati 方程：
+
+$$
+\begin{cases}
+A_{\mathrm{v}}^{\mathrm{T}}P
++PA_{\mathrm{v}}
+-PBR^{-1}B^{\mathrm{T}}P
++Q
+=0,\\
+A_{\mathrm{v}}=A+v_{\mathrm{spe}}I
+\end{cases}
+$$
+
+但在本文中，反馈矩阵不是自由变量，而是由通信拓扑决定：
+
+$$
+C=\mathcal{H}(M_{\mathrm{c}})
+$$
+
+因此，对于给定通信拓扑，更自然的是用 Lyapunov 方程评价该拓扑诱导出的闭环指标：
+
+$$
+\left(A_{\mathrm{cl}}+v_{\mathrm{spe}}I\right)^{\mathrm{T}}P
++P\left(A_{\mathrm{cl}}+v_{\mathrm{spe}}I\right)
++Q+C^{\mathrm{T}}RC
+=0
+$$
+
+这部分的整体逻辑可以概括为：
+
+$$
+M_{\mathrm{c}}
+\rightarrow
+C
+\rightarrow
+A_{\mathrm{cl}}
+\rightarrow
+x(t)
+\rightarrow
+f_{\mathrm{CR}}
+$$
+
+所以，“优化 $f_{\mathrm{CR}}$” 在本文中不是直接调节一个已经自由的 $C$，而是在可行通信拓扑集合中寻找更合适的 $M_{\mathrm{c}}$。每个 $M_{\mathrm{c}}$ 对应一个 $C$，每个 $C$ 对应一个闭环矩阵 $A_{\mathrm{cl}}$，最终通过 $f_{\mathrm{CR}}$ 比较闭环收敛性能。
+
+虽然 $f_{\mathrm{CR}}$ 的表达式中没有显式出现 $A_{\mathrm{cl}}$，但 $A_{\mathrm{cl}}$ 通过状态轨迹 $x(t)$ 进入积分性能指标。因此，优化 $f_{\mathrm{CR}}$ 本质上是在优化通信拓扑诱导的闭环动态性能。
+
+## 17. 通信稀疏性目标的理解
+
+Section III-B 中，论文提出的第二个优化目标是通信稀疏性。其出发点是：风电场中 WT/ES 节点数量较多，如果通信链路过多，会增加通信负担、通信能量损耗和网络维护成本。因此，在保证控制性能和通信连通性的前提下，希望通信网络尽可能稀疏。
+
+论文将通信稀疏性目标写为：
+
+$$
+f_{\mathrm{CS}}
+=\|\Lambda_{\mathrm{c}}\|_{\ell_1}
+=\sum_{i=1}^{N}
+|\Lambda_{\mathrm{c},ii}|
+=
+\sum_{i=1}^{N}
+\Lambda_{\mathrm{c},ii}
+$$
+
+其中，$\Lambda_{\mathrm{c}}$ 是通信网络的度矩阵，$\Lambda_{\mathrm{c},ii}$ 是第 $i$ 个节点的度，即该节点直接连接的通信邻居数量。
+
+更严谨地说，可以把度矩阵的对角元素抽成度向量：
+
+$$
+d_{\mathrm{c}}
+=
+\begin{bmatrix}
+\Lambda_{\mathrm{c},11}&
+\Lambda_{\mathrm{c},22}&
+\cdots&
+\Lambda_{\mathrm{c},NN}
+\end{bmatrix}^{\mathrm{T}}
+$$
+
+则论文中的 $\|\Lambda_{\mathrm{c}}\|_{\ell_1}$ 可以理解为：
+
+$$
+\|\Lambda_{\mathrm{c}}\|_{\ell_1}
+\equiv
+\|d_{\mathrm{c}}\|_{\ell_1}
+$$
+
+也就是对所有节点度数求 $\ell_1$ 范数。
+
+由于节点度数非负：
+
+$$
+\Lambda_{\mathrm{c},ii}\geq 0
+$$
+
+所以有：
+
+$$
+|\Lambda_{\mathrm{c},ii}|
+=
+
+\Lambda_{\mathrm{c},ii}
+$$
+
+因此，论文中的 $f_{\mathrm{CS}}$ 本质上就是所有节点度数之和。
+
+---
+
+### 17.1 为什么使用 $\ell_1$ 范数
+
+在优化问题中，$\ell_1$ 范数常被用来促进稀疏性。对于一个向量：
+
+$$
+z=
+\begin{bmatrix}
+z_1&
+z_2&
+\cdots&
+z_N
+\end{bmatrix}^{\mathrm{T}}
+$$
+
+其 $\ell_1$ 范数为：
+
+$$
+\|z\|_{\ell_1}
+=
+\sum_{i=1}^{N}|z_i|
+$$
+
+如果 $z_i$ 是非负变量，则：
+
+$$
+\|z\|_{\ell_1}
+=
+\sum_{i=1}^{N}z_i
+$$
+
+在本文中，度矩阵 $\Lambda_{\mathrm{c}}$ 的对角元素就是每个通信节点的度数，因此：
+
+$$
+\|\Lambda_{\mathrm{c}}\|_{\ell_1}
+=
+\sum_{i=1}^{N}\Lambda_{\mathrm{c},ii}
+$$
+
+可以理解为对所有节点通信邻居数量求和。
+
+这里需要注意，真正直接表示“非零元素个数”的是 $\ell_0$ “范数”。例如，对向量 $z$ 有：
+
+$$
+\|z\|_{\ell_0}
+=
+\#\{i:z_i\neq 0\}
+$$
+
+> 注：这里的 $\#\{\cdot\}$ 表示集合中元素的个数，也就是集合的基数。例如 $\#\{i:z_i\neq 0\}$ 表示满足 $z_i\neq 0$ 的下标数量。类似含义也常写成 $\operatorname{card}\{i:z_i\neq 0\}$；而 `\card` 通常不是 LaTeX 默认命令，需要作者自己定义宏。
+
+如果直接把通信邻接矩阵中的非零元素计数，也确实可以得到通信边数信息。但是 $\ell_0$ 形式通常是非凸、非光滑的组合优化目标，不利于后续用连续优化或 ADMM 类方法处理。因此，稀疏优化中常用 $\ell_1$ 范数作为替代指标。
+
+在本文这个问题中，$\ell_1$ 还有一个更直接的含义：通信边本身由 $0$-$1$ 邻接矩阵描述，节点度数 $\Lambda_{\mathrm{c},ii}$ 又是非负整数，所以对度数取 $\ell_1$ 范数并不是单纯的“近似稀疏性”，而是直接等于所有节点度数之和。
+
+也就是说：
+
+$$
+\boxed{
+\|\Lambda_{\mathrm{c}}\|_{\ell_1}
+=
+\sum_{i=1}^{N}\Lambda_{\mathrm{c},ii}
+\text{ 直接度量全网通信连接负担}
+}
+$$
+
+如果对度向量使用 $\ell_0$，反而会得到“有至少一个邻居的节点数”，这并不能表示通信边数。例如一个节点有 $1$ 个邻居和有 $10$ 个邻居，在度向量的 $\ell_0$ 计数中都只贡献 $1$，无法反映通信负担差异。因此，对通信链路稀疏性来说，度数的 $\ell_1$ 和边数之间的关系更合适。
+
+还要区分“向量 $\ell_1$ 范数”和“矩阵诱导 1-范数”。矩阵诱导 1-范数定义为：
+
+$$
+\|A\|_1
+=
+\max_{x\neq 0}
+\frac{\|Ax\|_1}{\|x\|_1}
+=
+\max_j
+\sum_i |a_{ij}|
+$$
+
+也就是矩阵各列绝对值列和的最大值。如果把这个定义用于对角度矩阵 $\Lambda_{\mathrm{c}}$，则有：
+
+$$
+\|\Lambda_{\mathrm{c}}\|_1
+=
+\max_i \Lambda_{\mathrm{c},ii}
+$$
+
+它表示最大节点度，而不是所有节点度数之和。因此，论文这里的 $\|\Lambda_{\mathrm{c}}\|_{\ell_1}$ 更应理解为“把度矩阵的对角元素看成度向量后取 $\ell_1$ 范数”，而不是严格意义上的矩阵诱导 1-范数。
+
+---
+
+### 17.2 通信稀疏性的物理含义
+
+节点度数 $\Lambda_{\mathrm{c},ii}$ 表示第 $i$ 个节点需要直接通信的邻居数量。若某个节点度数越大，说明它需要维护的通信连接越多。
+
+因此：
+
+$$
+\sum_{i=1}^{N}\Lambda_{\mathrm{c},ii}
+$$
+
+越大，表示整个通信网络中总的通信连接负担越重；反之，该值越小，表示网络越稀疏。
+
+所以，最小化：
+
+$$
+f_{\mathrm{CS}}
+=
+\sum_{i=1}^{N}\Lambda_{\mathrm{c},ii}
+$$
+
+就等价于减少通信网络中的总连接数量，从而降低通信负担和通信能量损耗。
+
+---
+
+### 17.3 图论基本定理：无向图中所有节点度数之和等于边数的两倍
+
+通信稀疏性目标之所以能够表示通信链路数量，关键依赖于图论中的一个基本定理：
+
+$$
+\sum_{i=1}^{N}\Lambda_{\mathrm{c},ii}
+=
+2|E_{\mathrm{c}}|
+$$
+
+其中，$|E_{\mathrm{c}}|$ 表示通信图中的边数。
+
+证明如下。
+
+设通信网络为无向图：
+
+$$
+G_{\mathrm{c}}=(V_{\mathrm{c}},E_{\mathrm{c}})
+$$
+
+其中，$V_{\mathrm{c}}$ 是节点集合，$E_{\mathrm{c}}$ 是边集合。
+
+对于任意一条无向边：
+
+$$
+e=(v_i,v_j)
+$$
+
+它连接节点 $v_i$ 和节点 $v_j$。因此，这条边会使节点 $v_i$ 的度增加 $1$，同时也会使节点 $v_j$ 的度增加 $1$。
+
+也就是说，每一条无向边对全图所有节点度数之和的贡献为：
+
+$$
+1+1=2
+$$
+
+如果图中一共有 $|E_{\mathrm{c}}|$ 条边，则所有边对节点度数之和的总贡献为：
+
+$$
+2|E_{\mathrm{c}}|
+$$
+
+因此得到：
+
+$$
+\sum_{i=1}^{N}\Lambda_{\mathrm{c},ii}
+=
+2|E_{\mathrm{c}}|
+$$
+
+这一定理也可以从邻接矩阵角度理解。对于无向无权图，邻接矩阵满足：
+
+$$
+M_{\mathrm{c},ij}
+=
+M_{\mathrm{c},ji}
+$$
+
+且若节点 $i$ 与节点 $j$ 相连，则：
+
+$$
+M_{\mathrm{c},ij}=M_{\mathrm{c},ji}=1
+$$
+
+因此，每一条无向边会在邻接矩阵中产生两个 $1$，分别位于 $(i,j)$ 和 $(j,i)$ 位置。
+
+节点 $i$ 的度为：
+
+$$
+\Lambda_{\mathrm{c},ii}
+=
+\sum_{j=1}^{N}M_{\mathrm{c},ij}
+$$
+
+所以所有节点度数之和为：
+
+$$
+\sum_{i=1}^{N}\Lambda_{\mathrm{c},ii}
+=
+\sum_{i=1}^{N}
+\sum_{j=1}^{N}
+M_{\mathrm{c},ij}
+$$
+
+由于每条边在邻接矩阵中被计数两次，因此：
+
+$$
+\sum_{i=1}^{N}
+\sum_{j=1}^{N}
+M_{\mathrm{c},ij}
+=
+2|E_{\mathrm{c}}|
+$$
+
+故有：
+
+$$
+\sum_{i=1}^{N}\Lambda_{\mathrm{c},ii}
+=
+2|E_{\mathrm{c}}|
+$$
+
+因此，对于无向无权图，也可以直接用邻接矩阵元素之和表示通信边数：
+
+$$
+\sum_{i=1}^{N}
+\sum_{j=1}^{N}
+M_{\mathrm{c},ij}
+=
+2|E_{\mathrm{c}}|
+$$
+
+这与对度矩阵对角元素求和是等价的。论文使用 $\|\Lambda_{\mathrm{c}}\|_{\ell_1}$，本质上与对邻接矩阵求和等价，但从表达上更突出“节点通信负担”的含义：每个节点的度数就是该节点需要维护的直接通信邻居数量。
+
+于是论文中的通信稀疏性目标可以写成：
+
+$$
+f_{\mathrm{CS}}
+=
+\|\Lambda_{\mathrm{c}}\|_{\ell_1}
+=2|E_{\mathrm{c}}|
+$$
+
+因此，最小化 $f_{\mathrm{CS}}$ 等价于最小化通信边数：
+
+$$
+\min f_{\mathrm{CS}}
+\Longleftrightarrow
+\min |E_{\mathrm{c}}|
+$$
+
+这就是该目标能够体现通信稀疏性的根本原因。
+
+---
+
+### 17.4 当前理解小结
+
+通信稀疏性目标为：
+
+$$
+f_{\mathrm{CS}}
+=\|\Lambda_{\mathrm{c}}\|_{\ell_1}
+=\sum_{i=1}^{N}\Lambda_{\mathrm{c},ii}
+$$
+
+由于无向图中所有节点度数之和等于边数的两倍：
+
+$$
+\sum_{i=1}^{N}\Lambda_{\mathrm{c},ii}
+=
+2|E_{\mathrm{c}}|
+$$
+
+所以：
+
+$$
+f_{\mathrm{CS}}
+=
+2|E_{\mathrm{c}}|
+$$
+
+因此，最小化 $f_{\mathrm{CS}}$ 实际上就是减少通信网络中的边数，从而降低通信负担和通信能量损耗。
+
+需要注意，$\|\Lambda_{\mathrm{c}}\|_{\ell_1}$ 在这里应理解为度向量 $d_{\mathrm{c}}$ 的 $\ell_1$ 范数，而不是矩阵诱导 1-范数。若按矩阵诱导 1-范数理解，$\|\Lambda_{\mathrm{c}}\|_1$ 表示最大节点度，而不是通信边数。
+
+这一目标与前面的收敛速度目标存在天然矛盾：通信边越多，通常信息传播越快、控制收敛越好；但通信边越多，通信成本和负担也越高。因此，论文需要在收敛性能和通信稀疏性之间进行折中优化。
+
+## 18. 通信生存性目标的理解
+
+Section III-B 中，论文提出的第三个优化目标是通信生存性。其基本出发点是：在大规模风电场中，WT/ES 节点数量较多，局部通信节点故障的概率不可忽视。如果通信网络过度依赖少数高节点度节点，那么这些节点一旦故障，就可能同时影响大量通信链路，从而削弱分布式一致性控制的有效性。
+
+因此，论文希望通信网络不仅要连通、收敛快、边数少，还要避免形成过强的中心节点，使通信负担在各节点之间尽可能均匀分布。
+
+论文将通信生存性目标写为：
+
+$$
+f_{\mathrm{NF}}
+=
+\|\Lambda_{\mathrm{c}}-\bar{\Lambda}_{\mathrm{c}}I\|_{\ell_1}
+=\sum_{i=1}^{N}
+\left|
+\Lambda_{\mathrm{c},ii}
+-
+\bar{\Lambda}_{\mathrm{c}}
+\right|
+$$
+
+其中，$\Lambda_{\mathrm{c}}$ 是通信网络的度矩阵，$\Lambda_{\mathrm{c},ii}$ 表示第 $i$ 个节点的度，$\bar{\Lambda}_{\mathrm{c}}$ 表示所有节点度数的平均值：
+
+$$
+\bar{\Lambda}_{\mathrm{c}}
+=
+\frac{1}{N}
+\sum_{i=1}^{N}
+\Lambda_{\mathrm{c},ii}
+$$
+
+更严谨地说，这里的 $\|\Lambda_{\mathrm{c}}-\bar{\Lambda}_{\mathrm{c}}I\|_{\ell_1}$ 应理解为对角元素组成的度偏差向量的 $\ell_1$ 范数，而不是矩阵诱导 1-范数。若按矩阵诱导 1-范数理解，得到的是最大绝对度偏差，而不是所有节点度偏差的总量。
+
+令：
+
+$$
+d_{\Delta}
+=
+\begin{bmatrix}
+\Lambda_{\mathrm{c},11}-\bar{\Lambda}_{\mathrm{c}}&
+\Lambda_{\mathrm{c},22}-\bar{\Lambda}_{\mathrm{c}}&
+\cdots&
+\Lambda_{\mathrm{c},NN}-\bar{\Lambda}_{\mathrm{c}}
+\end{bmatrix}^{\mathrm{T}}
+$$
+
+则：
+
+$$
+f_{\mathrm{NF}}
+=
+\|d_{\Delta}\|_{\ell_1}
+$$
+
+---
+
+### 18.1 通信生存性为什么与节点度有关
+
+节点度 $\Lambda_{\mathrm{c},ii}$ 表示第 $i$ 个节点直接连接的通信邻居数量。节点度越大，说明该节点需要维护和处理的通信连接越多，其通信负担也越重。
+
+如果某些节点度数显著高于其他节点，则通信网络呈现较强的中心化特征。这类高节点度节点承担更多信息交换任务，通信负担更重；一旦发生通信故障，也会同时影响更多通信链路，对网络连通性和一致性控制造成更大冲击。
+
+因此，通信生存性目标的核心并不是单纯增加通信边数，而是希望在已有通信边数条件下，使边的分布更加均衡，避免网络过度依赖少数中心节点。
+
+可以将其理解为一种“去中心化”的设计目标：
+
+$$
+\boxed{
+\text{避免通信连接过度集中在少数节点上，使通信负担在各节点间更均匀分布。}
+}
+$$
+
+---
+
+### 18.2 为什么构造 $\Lambda_{\mathrm{c}}-\bar{\Lambda}_{\mathrm{c}}I$
+
+度矩阵可以写成：
+
+$$
+\Lambda_{\mathrm{c}}
+=
+\operatorname{diag}
+\left(
+\Lambda_{\mathrm{c},11},
+\Lambda_{\mathrm{c},22},
+\cdots,
+\Lambda_{\mathrm{c},NN}
+\right)
+$$
+
+平均度对应的矩阵为：
+
+$$
+\bar{\Lambda}_{\mathrm{c}}I
+=
+\operatorname{diag}
+\left(
+\bar{\Lambda}_{\mathrm{c}},
+\bar{\Lambda}_{\mathrm{c}},
+\cdots,
+\bar{\Lambda}_{\mathrm{c}}
+\right)
+$$
+
+因此：
+
+$$
+\Lambda_{\mathrm{c}}-\bar{\Lambda}_{\mathrm{c}}I
+=\operatorname{diag}
+\left(
+\Lambda_{\mathrm{c},11}-\bar{\Lambda}_{\mathrm{c}},
+\Lambda_{\mathrm{c},22}-\bar{\Lambda}_{\mathrm{c}},
+\cdots,
+\Lambda_{\mathrm{c},NN}-\bar{\Lambda}_{\mathrm{c}}
+\right)
+$$
+
+该矩阵的对角元素表示每个节点度数相对于平均度的偏差。若 $\Lambda_{\mathrm{c},ii}>\bar{\Lambda}_{\mathrm{c}}$，说明第 $i$ 个节点的通信负担高于平均水平；若 $\Lambda_{\mathrm{c},ii}<\bar{\Lambda}_{\mathrm{c}}$，说明该节点的通信连接偏少。
+
+如果所有节点度数完全相等，则有：
+
+$$
+\Lambda_{\mathrm{c},ii}
+=
+\bar{\Lambda}_{\mathrm{c}},
+\quad
+\forall i
+$$
+
+此时：
+
+$$
+\Lambda_{\mathrm{c}}-\bar{\Lambda}_{\mathrm{c}}I=0
+$$
+
+并且：
+
+$$
+f_{\mathrm{NF}}=0
+$$
+
+所以，该目标函数衡量的是节点度分布偏离均匀程度的总量，而不是通信边数本身。
+
+---
+
+### 18.3 为什么使用 $\ell_1$ 范数
+
+由于 $\Lambda_{\mathrm{c}}-\bar{\Lambda}_{\mathrm{c}}I$ 是对角矩阵，其主要信息就在对角线上。论文中的 $\ell_1$ 范数实质上是对所有节点度偏差取绝对值后求和：
+
+$$
+f_{\mathrm{NF}}
+=
+\sum_{i=1}^{N}
+\left|
+\Lambda_{\mathrm{c},ii}
+-
+\bar{\Lambda}_{\mathrm{c}}
+\right|
+$$
+
+这可以理解为节点度相对平均度的总绝对偏差。
+
+这里必须使用绝对值或类似的非负度量。若直接对偏差求和，则由平均度定义可得：
+
+$$
+\sum_{i=1}^{N}
+\left(
+\Lambda_{\mathrm{c},ii}
+-
+\bar{\Lambda}_{\mathrm{c}}
+\right)
+=
+\sum_{i=1}^{N}
+\Lambda_{\mathrm{c},ii}
+-
+N\bar{\Lambda}_{\mathrm{c}}
+=
+\sum_{i=1}^{N}
+\Lambda_{\mathrm{c},ii}
+-
+\sum_{i=1}^{N}
+\Lambda_{\mathrm{c},ii}
+=0
+$$
+
+也就是说，若不取绝对值，正偏差和负偏差会相互抵消，结果恒为 $0$，无法反映节点度分布是否均衡。
+
+采用 $\ell_1$ 范数后，每个节点的偏差都以非负形式计入目标函数：
+
+$$
+\left|
+\Lambda_{\mathrm{c},ii}
+-
+\bar{\Lambda}_{\mathrm{c}}
+\right|
+\geq 0
+$$
+
+因此，$f_{\mathrm{NF}}$ 越小，说明各节点度数越接近平均度；$f_{\mathrm{NF}}$ 越大，说明通信连接越集中在部分节点上，网络中心化程度越强。
+
+从优化角度看，$\ell_1$ 范数还有一个优点：它是分段线性的，通常比平方偏差形式更容易与混合整数优化或 ADMM 分解框架结合。
+
+---
+
+### 18.4 该指标与通信稀疏性的区别
+
+通信稀疏性目标为：
+
+$$
+f_{\mathrm{CS}}
+=
+\sum_{i=1}^{N}
+\Lambda_{\mathrm{c},ii}
+=
+2|E_{\mathrm{c}}|
+$$
+
+它关注的是通信边的总数量，即“边有多少”。只要边数相同，$f_{\mathrm{CS}}$ 就相同。
+
+而通信生存性目标为：
+
+$$
+f_{\mathrm{NF}}
+=
+\sum_{i=1}^{N}
+\left|
+\Lambda_{\mathrm{c},ii}
+-
+\bar{\Lambda}_{\mathrm{c}}
+\right|
+$$
+
+它关注的是通信边在不同节点之间的分布，即“边分布在哪里”。
+
+因此，两个目标关注点不同：
+
+$$
+\boxed{
+f_{\mathrm{CS}}\text{ 关注“边有多少”}
+}
+$$
+
+$$
+\boxed{
+f_{\mathrm{NF}}\text{ 关注“边分布得是否均匀”}
+}
+$$
+
+即使两个通信网络具有相同或相近的边数，如果一个网络的边高度集中在少数节点上，而另一个网络的边在各节点之间分布更均衡，那么二者的通信稀疏性可能相近，但通信生存性目标会明显不同。
+
+论文引入 $f_{\mathrm{NF}}$，正是为了补充 $f_{\mathrm{CS}}$ 无法反映的节点度不均衡问题。
+
+---
+
+### 18.5 该指标的局限性
+
+需要注意，$f_{\mathrm{NF}}$ 是通信生存性的一个简化代理指标，而不是严格的节点故障鲁棒性判据。
+
+严格的通信生存性可以考虑：
+
+1. 删除任意一个节点后，网络是否仍然连通；
+2. 删除节点后代数连通度 $\lambda_2(L_{\mathrm{c}})$ 下降多少；
+3. 网络的节点连通度或边连通度；
+4. 是否存在割点、关键节点或多节点故障场景。
+
+这些指标能够更直接地描述节点故障后的网络保持能力，但通常会使优化问题更加复杂。
+
+论文采用节点度均衡目标，是一种更容易建模和优化的处理方式。其工程含义是：
+
+$$
+\boxed{
+\text{通过抑制高节点度中心节点，降低局部节点故障对通信网络和一致性控制的影响。}
+}
+$$
+
+因此，$f_{\mathrm{NF}}$ 可以理解为提高通信生存性的近似指标，而不是对任意节点故障后网络仍连通的严格保证。
+
+---
+
+### 18.6 当前理解小结
+
+通信生存性目标为：
+
+$$
+f_{\mathrm{NF}}
+=
+\|\Lambda_{\mathrm{c}}-\bar{\Lambda}_{\mathrm{c}}I\|_{\ell_1}
+=
+\sum_{i=1}^{N}
+\left|
+\Lambda_{\mathrm{c},ii}
+-
+\bar{\Lambda}_{\mathrm{c}}
+\right|
+$$
+
+它衡量的是各节点度数相对于平均度的总绝对偏差。
+
+因此，该目标可以理解为一种“去中心化”的通信网络设计指标：
+
+$$
+\boxed{
+f_{\mathrm{NF}}\text{ 越小，节点度分布越均衡，网络对少数中心节点的依赖越弱。}
+}
+$$
+
+它与通信稀疏性目标共同作用：
+
+$$
+f_{\mathrm{CS}}
+\Rightarrow
+\text{减少通信边数}
+$$
+
+$$
+f_{\mathrm{NF}}
+\Rightarrow
+\text{均衡通信负担}
+$$
+
+二者结合后，论文希望得到一种既不过度密集、又不过度中心化的通信网络拓扑，从而在降低通信负担的同时提高局部节点故障下的通信生存性。
+
+## 19. 通信拓扑约束与连通性条件的等价变换
+
+Section III-B 中，在给出三个优化目标之后，论文进一步给出了通信拓扑优化问题中的约束条件。这些约束主要用于保证通信邻接矩阵 $M_{\mathrm{c}}$、度矩阵 $\Lambda_{\mathrm{c}}$ 和拉普拉斯矩阵 $L_{\mathrm{c}}$ 的图论含义成立，并保证通信网络连通。
+
+---
+
+### 19.1 通信邻接矩阵的基本约束
+
+通信网络被建模为无向无权图，因此其邻接矩阵 $M_{\mathrm{c}}$ 需要满足：
+
+$$
+M_{\mathrm{c}}=M_{\mathrm{c}}^{\mathrm{T}}
+$$
+
+该约束表示通信关系是双向的，即若节点 $i$ 能与节点 $j$ 通信，则节点 $j$ 也能与节点 $i$ 通信。
+
+同时，节点不能与自身建立通信边，因此：
+
+$$
+M_{\mathrm{c},ii}=0,
+\quad
+i=1,2,\cdots,N
+$$
+
+此外，通信边只有“存在”和“不存在”两种情况，因此：
+
+$$
+M_{\mathrm{c},ij}\in\{0,1\}
+$$
+
+其中，$M_{\mathrm{c},ij}=1$ 表示节点 $i$ 和节点 $j$ 之间存在通信链路，$M_{\mathrm{c},ij}=0$ 表示二者之间不存在直接通信链路。
+
+因此，$M_{\mathrm{c}}$ 是一个对称的 $0$-$1$ 矩阵，且主对角元素为零。
+
+---
+
+### 19.2 度矩阵和拉普拉斯矩阵约束
+
+通信度矩阵 $\Lambda_{\mathrm{c}}$ 是对角矩阵，其第 $i$ 个对角元素表示节点 $i$ 的度，即节点 $i$ 直接连接的通信邻居数量：
+
+$$
+\Lambda_{\mathrm{c},ii}
+=
+\sum_{j=1}^{N}
+M_{\mathrm{c},ij}
+$$
+
+非对角元素为零：
+
+$$
+\Lambda_{\mathrm{c},ij}=0,
+\quad
+i\neq j
+$$
+
+通信拉普拉斯矩阵定义为：
+
+$$
+L_{\mathrm{c}}
+=
+\Lambda_{\mathrm{c}}-M_{\mathrm{c}}
+$$
+
+因此，$L_{\mathrm{c}}$ 的对角元素为节点度数，非对角元素在存在通信边时为 $-1$，不存在通信边时为 $0$。
+
+这些约束只是把“通信图”翻译成矩阵形式，本身比较直观。真正比较关键的是后面对通信图连通性的处理。
+
+---
+
+### 19.3 连通性条件：从 $\lambda_2(L_{\mathrm{c}})>0$ 到矩阵不等式
+
+对于无向图的拉普拉斯矩阵 $L_{\mathrm{c}}$，其特征值可以按从小到大排列为：
+
+$$
+0=\lambda_1(L_{\mathrm{c}})
+\leq
+\lambda_2(L_{\mathrm{c}})
+\leq
+\cdots
+\leq
+\lambda_N(L_{\mathrm{c}})
+$$
+
+其中，$\lambda_2(L_{\mathrm{c}})$ 是代数连通度，也称 Fiedler 值。图连通当且仅当：
+
+$$
+\lambda_2(L_{\mathrm{c}})>0
+$$
+
+如果直接在优化问题中写 $\lambda_2(L_{\mathrm{c}})>0$，这是一个特征值约束，处理起来不够方便。论文参考 [29，S. Boyd, 2006, “Convex optimization of graph Laplacian eigenvalues”] 中的思想，将其转化为半正定约束。为了先理解这个变换的核心，可以从一个固定投影形式看起。
+
+关键观察是，拉普拉斯矩阵总满足：
+
+$$
+L_{\mathrm{c}}1_N=0
+$$
+
+其中：
+
+$$
+1_N=
+\begin{bmatrix}
+1&1&\cdots&1
+\end{bmatrix}^{\mathrm{T}}
+$$
+
+也就是说，全 1 向量 $1_N$ 对应拉普拉斯矩阵的零特征值。这一零特征值是拉普拉斯矩阵固有的；无论图是否连通，都有 $L_{\mathrm{c}}1_N=0$，所以不能直接要求：
+
+$$
+L_{\mathrm{c}}\succ0
+$$
+
+因此，$L_{\mathrm{c}}$ 至多是半正定矩阵。
+
+为去掉这个固有零特征值的影响，可以引入矩阵：
+
+$$
+J=
+\frac{1}{N}1_N1_N^{\mathrm{T}}
+$$
+
+该矩阵是到全 1 向量方向上的正交投影矩阵。它具有如下性质：
+
+$$
+J1_N=1_N
+$$
+
+而对于任意满足：
+
+$$
+1_N^{\mathrm{T}}y=0
+$$
+
+的向量 $y$，有：
+
+$$
+Jy=0
+$$
+
+也就是说，$J$ 只作用在 $1_N$ 方向上，而在与 $1_N$ 正交的子空间上为零。
+
+因此，考虑矩阵：
+
+$$
+L_{\mathrm{c}}+J
+=
+L_{\mathrm{c}}
++
+\frac{1}{N}1_N1_N^{\mathrm{T}}
+$$
+
+在 $1_N$ 方向上，有：
+
+$$
+\left(
+L_{\mathrm{c}}+J
+\right)1_N
+=
+L_{\mathrm{c}}1_N
++
+J1_N
+=0+1_N=1_N
+$$
+
+所以 $1_N$ 方向对应的特征值由原来的 $0$ 被提升为 $1$。
+
+而在与 $1_N$ 正交的子空间上，若 $1_N^{\mathrm{T}}y=0$，则：
+
+$$
+Jy=0
+$$
+
+因此：
+
+$$
+\left(
+L_{\mathrm{c}}+J
+\right)y
+=
+L_{\mathrm{c}}y
+$$
+
+也就是说，在该子空间上，$L_{\mathrm{c}}+J$ 的特征值与 $L_{\mathrm{c}}$ 在除一致性方向外的特征值相同，也就是 $\lambda_2(L_{\mathrm{c}}),\cdots,\lambda_N(L_{\mathrm{c}})$。
+
+所以，$L_{\mathrm{c}}+J$ 的特征值为：
+
+$$
+1,\lambda_2(L_{\mathrm{c}}),\lambda_3(L_{\mathrm{c}}),\cdots,\lambda_N(L_{\mathrm{c}})
+$$
+
+因此：
+
+$$
+L_{\mathrm{c}}
++
+\frac{1}{N}1_N1_N^{\mathrm{T}}
+\succ0
+$$
+
+当且仅当：
+
+$$
+\lambda_2(L_{\mathrm{c}})>0
+$$
+
+也就是当且仅当通信图连通。
+
+所以通信连通性约束可以等价写为：
+
+$$
+L_{\mathrm{c}}
++
+\frac{1}{N}1_N1_N^{\mathrm{T}}
+\succ0
+$$
+
+这个固定投影形式说明了为什么可以通过给一致性方向补上一个正特征值，来避开拉普拉斯矩阵固有的零特征值。但它还不是论文式 (21) 的原始写法；论文式 (21) 使用的是带辅助变量 $\xi$ 的矩阵不等式。
+
+---
+
+### 19.4 论文式 (21) 中的辅助变量 $\xi$
+
+论文式 (21) 的核心矩阵不等式可以写成：
+
+$$
+\gamma I
+\preceq
+L_{\mathrm{c}}+\xi 1_N1_N^{\mathrm{T}}
+$$
+
+> 注：LMI 是 Linear Matrix Inequality，即线性矩阵不等式。它通常指一个关于优化变量仿射变化的对称矩阵被要求半正定，例如 $F(x)\succeq0$。这里的 $\gamma I\preceq L_{\mathrm{c}}+\xi1_N1_N^{\mathrm{T}}$ 等价于 $L_{\mathrm{c}}+\xi1_N1_N^{\mathrm{T}}-\gamma I\succeq0$，也就是要求该矩阵的所有特征值都不小于 $0$。这种形式比直接处理 $\lambda_2(L_{\mathrm{c}})$ 更适合放入半正定规划和后续分解求解框架。
+
+其中，$\xi$ 是辅助实数变量。由于 $L_{\mathrm{c}}1_N=0$，而 $1_N1_N^{\mathrm{T}}$ 在 $1_N$ 方向上的特征值为 $N$，在与 $1_N$ 正交的子空间上为 $0$，所以：
+
+$$
+\lambda
+\left(
+L_{\mathrm{c}}+\xi 1_N1_N^{\mathrm{T}}
+\right)
+=
+\left\{
+\xi N,\lambda_2(L_{\mathrm{c}}),\lambda_3(L_{\mathrm{c}}),\cdots,\lambda_N(L_{\mathrm{c}})
+\right\}
+$$
+
+矩阵不等式 $\gamma I\preceq L_{\mathrm{c}}+\xi 1_N1_N^{\mathrm{T}}$ 等价于要求该矩阵所有特征值都不小于 $\gamma$，因此：
+
+$$
+\gamma
+\leq
+\min
+\left\{
+\xi N,\lambda_2(L_{\mathrm{c}}),\lambda_3(L_{\mathrm{c}}),\cdots,\lambda_N(L_{\mathrm{c}})
+\right\}
+$$
+
+又因为：
+
+$$
+\lambda_2(L_{\mathrm{c}})
+\leq
+\lambda_3(L_{\mathrm{c}})
+\leq
+\cdots
+\leq
+\lambda_N(L_{\mathrm{c}})
+$$
+
+所以上式可写成：
+
+$$
+\gamma
+\leq
+\min
+\left\{
+\xi N,\lambda_2(L_{\mathrm{c}})
+\right\}
+$$
+
+由于 $\xi$ 不进入主要目标函数，也没有上限约束，优化中可以选取足够大的 $\xi$，使 $\xi N\geq\lambda_2(L_{\mathrm{c}})$。此时该不等式的有效约束就是：
+
+$$
+\gamma
+\leq
+\lambda_2(L_{\mathrm{c}})
+$$
+
+因此，式 (21) 第二项的作用不是固定地把 $1_N$ 方向的零特征值提升为 $1$，而是通过自由变量 $\xi$ 把一致性方向“抬高到足够大”，从而让矩阵不等式真正约束的是 $\lambda_2(L_{\mathrm{c}})$。
+
+需要注意，这个 LMI 本身表达的是“$\gamma$ 是 $\lambda_2(L_{\mathrm{c}})$ 的一个下界”，即 $\gamma\leq\lambda_2(L_{\mathrm{c}})$。如果还希望用它保证通信图连通，就需要进一步要求 $\gamma>0$，或者在优化过程中推动 $\gamma$ 取正。否则，当 $\gamma=0$ 时，非连通图的 $\lambda_2(L_{\mathrm{c}})=0$ 也可能满足该不等式。
+
+---
+
+### 19.5 为什么原文又说 $\gamma$ 是 upper bound
+
+论文在式 (21) 中还写了另一条约束：
+
+$$
+\lambda_2(L_{\mathrm{c}})
+\leq
+\gamma
+$$
+
+从这条约束本身看，$\gamma$ 确实是 $\lambda_2(L_{\mathrm{c}})$ 的 upper bound，即上界。
+
+但上一小节已经说明，式 (21) 的第二个 LMI：
+
+$$
+\gamma I
+\preceq
+L_{\mathrm{c}}+\xi 1_N1_N^{\mathrm{T}}
+$$
+
+在 $\xi$ 可以自由选取时，实际给出的是：
+
+$$
+\gamma
+\leq
+\lambda_2(L_{\mathrm{c}})
+$$
+
+也就是说，两条约束的方向正好相反。合在一起，相当于把 $\gamma$ 夹在 $\lambda_2(L_{\mathrm{c}})$ 的两侧：
+
+$$
+\lambda_2(L_{\mathrm{c}})
+\leq
+\gamma
+\leq
+\lambda_2(L_{\mathrm{c}})
+$$
+
+因此得到：
+
+$$
+\gamma
+=
+\lambda_2(L_{\mathrm{c}})
+$$
+
+所以，从作者意图看，$\gamma$ 不是单纯为了给 $\lambda_2(L_{\mathrm{c}})$ 找一个松的上界，而是为了把难处理的谱量 $\lambda_2(L_{\mathrm{c}})$ 代理成一个优化变量。第一条约束给出 upper-bound 方向，第二个 LMI 给出 lower-bound 方向，两者共同试图把 $\gamma$ 绑定到代数连通度。
+
+但从严格凸优化建模角度看，这里存在一个需要特别注意的问题：$\lambda_2(L_{\mathrm{c}})\leq\gamma$ 并不能像 $\lambda_2(L_{\mathrm{c}})\geq\gamma$ 那样自然写成标准凸 LMI。
+
+> 注：这也可以从凸分析角度理解。对图拉普拉斯矩阵而言，$\lambda_2(L_{\mathrm{c}})$ 关于边权或关于由边权仿射生成的 $L_{\mathrm{c}}$ 是凹函数。凹函数的超水平集 $\{L_{\mathrm{c}}\mid \lambda_2(L_{\mathrm{c}})\geq\gamma\}$ 是凸集，因此可以对应到半正定约束；但凹函数的次水平集 $\{L_{\mathrm{c}}\mid \lambda_2(L_{\mathrm{c}})\leq\gamma\}$ 一般不是凸集，所以不能期望它自然写成标准凸 LMI。这正是 lower-bound 方向可处理、upper-bound 方向困难的根本原因。
+
+例如，下界约束：
+
+$$
+\lambda_2(L_{\mathrm{c}})
+\geq
+\gamma
+$$
+
+可以写成：
+
+$$
+L_{\mathrm{c}}
+\succeq
+\gamma
+\left(
+I-\frac{1}{N}1_N1_N^{\mathrm{T}}
+\right)
+$$
+
+或者等价地写成前面的移位形式：
+
+$$
+\gamma I
+\preceq
+L_{\mathrm{c}}+\xi1_N1_N^{\mathrm{T}}
+$$
+
+但是，如果试图用：
+
+$$
+L_{\mathrm{c}}
+\preceq
+\gamma
+\left(
+I-\frac{1}{N}1_N1_N^{\mathrm{T}}
+\right)
+$$
+
+来表示 $\lambda_2(L_{\mathrm{c}})\leq\gamma$，则并不正确。这个约束实际限制的是 $L_{\mathrm{c}}$ 在 $1_N$ 正交子空间上的最大特征值：
+
+$$
+\lambda_N(L_{\mathrm{c}})
+\leq
+\gamma
+$$
+
+也就是控制拉普拉斯矩阵的最大非零特征值，而不是只控制第二小特征值。
+
+因此，$\lambda_2(L_{\mathrm{c}})$ 的上界约束本身带有非凸性质。如果在算法实现中把 $\lambda_2$ 当作独立标量变量使用，就还需要额外机制保证这个标量等于真实矩阵 $L_{\mathrm{c}}$ 的第二小特征值；否则，这个 upper-bound 方向可能只是形式上的标量约束，无法真正反向限制通信拓扑。
+
+所以，这里更稳妥的理解是：式 (21) 中的下界 LMI 是合理且有用的，它能够把“代数连通度至少达到某个正下界”写成半正定约束；但 upper-bound 方向在标准凸 LMI 意义下并不严密。原文通过 $\gamma$ 和 $\lambda_2$ 进行夹逼，更像是为了把难以直接处理的第二小特征值显式拿出来，变成后续优化中便于协调和约束的辅助量，而不是一个完全无漏洞的凸等价变换。
+
+---
+
+### 19.6 为什么这个变换有用
+
+这个变换的价值在于，它把“代数连通度具有正下界”这样的谱约束，部分转化成了更容易处理的矩阵半正定约束。
+
+原始约束：
+
+$$
+\lambda_2(L_{\mathrm{c}})>0
+$$
+
+直接涉及“第二小特征值”，在优化中不够方便。
+
+式 (21) 中第二个半正定约束为：
+
+$$
+\gamma I
+\preceq
+L_{\mathrm{c}}+\xi 1_N1_N^{\mathrm{T}}
+$$
+
+它可以合理地给出：
+
+$$
+\gamma
+\leq
+\lambda_2(L_{\mathrm{c}})
+$$
+
+因此，当 $\gamma>0$ 时，它能够保证通信图连通。
+
+由于：
+
+$$
+L_{\mathrm{c}}=\Lambda_{\mathrm{c}}-M_{\mathrm{c}}
+$$
+
+而 $\Lambda_{\mathrm{c}}$ 又由 $M_{\mathrm{c}}$ 的行和决定，所以 $L_{\mathrm{c}}$ 是 $M_{\mathrm{c}}$ 的仿射函数。因此，这个下界方向的半正定约束可以嵌入到后续的半正定规划或混合整数半正定规划框架中。
+
+当然，由于本文中 $M_{\mathrm{c},ij}$ 仍然是 $0$-$1$ 变量，所以整个问题仍然具有组合优化特征；同时，式 (21) 中 $\lambda_2(L_{\mathrm{c}})\leq\gamma$ 这一 upper-bound 方向并不是标准凸 LMI，不能简单视为半正定约束。因此，式 (21) 更像是将代数连通度引入优化模型的启发式或松弛处理，而不是完全严密的凸等价变换。
+
+---
+
+### 19.7 当前理解小结
+
+论文中的基本通信拓扑约束可以概括为：
+
+$$
+\begin{cases}
+M_{\mathrm{c}}=M_{\mathrm{c}}^{\mathrm{T}},\\
+M_{\mathrm{c},ii}=0,\\
+M_{\mathrm{c},ij}\in\{0,1\},\\
+\Lambda_{\mathrm{c},ii}=\sum_{j=1}^{N}M_{\mathrm{c},ij},\\
+\Lambda_{\mathrm{c},ij}=0,\quad i\neq j,\\
+L_{\mathrm{c}}=\Lambda_{\mathrm{c}}-M_{\mathrm{c}}.
+\end{cases}
+$$
+
+它们分别对应无向通信、无自环、边变量二值、度矩阵定义和通信拉普拉斯矩阵定义。
+
+其中最关键的是连通性约束。原始图论条件为：
+
+$$
+\lambda_2(L_{\mathrm{c}})>0
+$$
+
+即通信图的代数连通度大于零。为了便于优化，论文利用拉普拉斯矩阵固有零特征值对应 $1_N$ 方向这一性质，将其写成带辅助变量 $\xi$ 的 LMI：
+
+$$
+\gamma I
+\preceq
+L_{\mathrm{c}}+\xi 1_N1_N^{\mathrm{T}}
+$$
+
+式 (21) 中第二个半正定约束可以合理地给出 $\lambda_2(L_{\mathrm{c}})$ 的下界，并在 $\gamma>0$ 时保证通信连通性；但式 (21) 中 $\lambda_2(L_{\mathrm{c}})\leq\gamma$ 这一 upper-bound 方向并不是标准凸 LMI，不能简单视为半正定约束。
+
+因此，式 (21) 更像是将代数连通度引入优化模型的启发式或松弛处理，而不是完全严密的凸等价变换。它的工程作用，是把难以直接处理的谱连通性信息显式变量化，使其能够和 $M_{\mathrm{c}}$、$\Lambda_{\mathrm{c}}$ 一起进入约束和后续求解框架。
+
+## 20. 最终通信网络优化问题的理解
+
+Section III-B 5) 的作用，是把前面三个目标和通信拓扑约束合并成一个最终优化模型。前面几节已经分别解释了 $f_{\mathrm{CR}}$、$f_{\mathrm{CS}}$、$f_{\mathrm{NF}}$ 和连通性约束，因此本节只保留最终模型的结构和逻辑关系。
+
+最终目标函数可以概括为：
+
+$$
+\min_{M_{\mathrm{c}},\Lambda_{\mathrm{c}},\lambda_2,\gamma}
+f_{\mathrm{Total}}
+=
+f_{\mathrm{CR}}
++
+\mu_1 f_{\mathrm{CS}}
++
+\mu_2 f_{\mathrm{NF}}
+$$
+
+其中：
+
+$$
+\begin{cases}
+f_{\mathrm{CR}}
+=
+\displaystyle
+\int_0^{\infty}
+e^{2v_{\mathrm{spe}}t}
+x^{\mathrm{T}}(t)
+\left(
+Q+C^{\mathrm{T}}RC
+\right)
+x(t)\,\mathrm{d}t,\\
+f_{\mathrm{CS}}
+=
+\|\Lambda_{\mathrm{c}}\|_{\ell_1},\\
+f_{\mathrm{NF}}
+=
+\|\Lambda_{\mathrm{c}}-\bar{\Lambda}_{\mathrm{c}}I\|_{\ell_1}.
+\end{cases}
+$$
+
+这里 $\mu_1>0$ 和 $\mu_2>0$ 是权重系数，用来调节通信稀疏性和通信生存性在总目标中的重要程度。由于三个目标的量纲和数值尺度不同，$\mu_1$、$\mu_2$ 不只是偏好参数，也起到尺度协调作用。
+
+---
+
+### 20.1 优化变量的分工
+
+最终模型中显式出现的主要变量为：
+
+$$
+M_{\mathrm{c}},\quad
+\Lambda_{\mathrm{c}},\quad
+\lambda_2,\quad
+\gamma
+$$
+
+其中，$M_{\mathrm{c}}$ 直接决定通信边，并通过 $C=\mathcal{H}(M_{\mathrm{c}})$ 影响 $f_{\mathrm{CR}}$；$\Lambda_{\mathrm{c}}$ 是由 $M_{\mathrm{c}}$ 行和得到的度矩阵，主要进入 $f_{\mathrm{CS}}$ 和 $f_{\mathrm{NF}}$：
+
+$$
+\Lambda_{\mathrm{c},ii}
+=
+\sum_{j=1}^{N}
+M_{\mathrm{c},ij}
+$$
+
+这也是后文采用 ADMM 变量分裂的直观基础：通信边结构和节点度分布虽然线性相关，但它们在不同目标项中承担的角色不同。$\lambda_2$ 和 $\gamma$ 则是为了把代数连通度相关信息显式放进优化模型。
+
+---
+
+### 20.2 为什么最终问题难解
+
+最终模型难解，主要不是因为某一个目标复杂，而是因为几个困难叠加在一起：
+
+1. $M_{\mathrm{c},ij}$ 是 $0$-$1$ 变量，带来组合优化性质；
+2. $f_{\mathrm{CR}}$ 是闭环动态性能指标，依赖 $A_{\mathrm{cl}}=A-BC$ 和状态轨迹 $x(t)$；
+3. $C=\mathcal{H}(M_{\mathrm{c}})$，使通信拓扑和闭环控制性能耦合；
+4. 连通性涉及 $\lambda_2(L_{\mathrm{c}})$ 和半正定约束，其中式 (21) 的 upper-bound 方向还带有松弛性质；
+5. $M_{\mathrm{c}}$ 与 $\Lambda_{\mathrm{c}}$ 线性相关，但分别主导不同目标项。
+
+因此，论文将最终问题视为混合整数半正定规划问题，并在后文使用 ADMM 框架进行分解求解。
+
+---
+
+### 20.3 当前理解小结
+
+Section III-B 5) 可以理解为把前面所有分析收束成一个拓扑选择问题：
+
+$$
+\boxed{
+\text{在满足通信图可行性和连通性约束的前提下，寻找一个收敛快、边数少、节点度分布较均衡的通信拓扑。}
+}
+$$
+
+其中，$f_{\mathrm{CR}}$ 对应控制性能，$f_{\mathrm{CS}}$ 对应通信成本，$f_{\mathrm{NF}}$ 对应节点度均衡和近似通信生存性。三者共同构成最终目标函数，$\mu_1$ 和 $\mu_2$ 决定这种折中关系。
