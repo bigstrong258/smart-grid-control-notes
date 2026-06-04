@@ -8,297 +8,223 @@
 
 ---
 
-## 1. DFIG 与 ES 系统结构理解
+## 1. DFIG 与 ES 系统结构
 
-本文研究的是配置分布式储能的风电场。每台风机采用 DFIG，并在 DFIG 的直流母线上通过 DC/DC 变换器接入一个 ES 单元。
+本文研究配置分布式储能的风电场。每台风机采用 DFIG，并在 DFIG 的直流母线上通过 DC/DC 变换器接入一个 ES 单元。
 
-DFIG 侧包括：
+基本结构为：
 
-* RSC：rotor-side converter，转子侧变流器；
-* GSC：grid-side converter，网侧变流器；
-* ES：energy storage，通过 DC/DC 接入直流母线。
+| 部分 | 作用 |
+|---|---|
+| RSC | rotor-side converter，转子侧变流器，主要控制 DFIG 有功/无功 |
+| GSC | grid-side converter，网侧变流器，主要维持直流母线与并网功率交换 |
+| ES | energy storage，经 DC/DC 接入直流母线，参与有功协调 |
 
-文中为了降低 GSC 电流和功率损耗，假设正常运行下 GSC 不提供无功，即：
-
-$$
-Q_{\mathrm{g}} = 0
-$$
-
-因此风机整体无功可以近似写成：
+论文为降低 GSC 电流和损耗，假设正常运行下 GSC 不提供无功：
 
 $$
-Q_{\mathrm{w}} = Q_{\mathrm{d}} = Q_{\mathrm{s}}
+Q_{\mathrm{g}}=0.
 $$
 
-也就是说，本文中的无功调节主要由 DFIG 本体承担，而不是由 GSC 或 ES 承担。
+因此风机无功主要由 DFIG 本体承担：
+
+$$
+Q_{\mathrm{w}}=Q_{\mathrm{d}}=Q_{\mathrm{s}}.
+$$
 
 ---
 
-## 2. Fig. 2 中 DFIG 功率控制环的整体理解
+## 2. DFIG 功率控制等效模型
 
-Fig. 2 可以理解为 DFIG 的有功、无功功率控制等效模型。它不是完整的 DFIG 电磁暂态模型，而是服务于风电场级分布式控制的简化功率动态模型。
-
-其结构可以概括为：
+Fig. 2 不是完整电磁暂态模型，而是服务于风电场级控制的 DFIG 功率动态等效模型。它可概括为：
 
 $$
 \text{功率外环 PI}
-+
+\rightarrow
 \text{转子电流内环一阶等效}
-+
+\rightarrow
 \text{电流到功率的静态映射}
-+
-\text{功率反馈滤波}
+\rightarrow
+\text{功率反馈滤波}.
 $$
 
-其中：
+后续状态空间推导中主要用到这些量：
 
-* $Q_{\mathrm{d}}^{\mathrm{ref}}$ 是 DFIG 无功功率参考，由风电场级通信/一致性控制给出；
-* $P_{\mathrm{d}}^{\mathrm{ref}}$ 是 DFIG 有功功率参考，由 MPPT 跟踪决定；
-* $i_{\mathrm{dr}}$ 是转子 d 轴电流，主要影响无功；
-* $i_{\mathrm{qr}}$ 是转子 q 轴电流，主要影响有功；
-* $1/(sT_{\mathrm{ir}}+1)$ 是转子电流内环闭环动态的一阶等效；
-* $1/(sT_{\mathrm{fr}}+1)$ 是有功/无功功率反馈滤波或测量延迟。
+| 变量/环节 | 含义 |
+|---|---|
+| $Q_{\mathrm{d}}^{\mathrm{ref}}$ | DFIG 无功参考，由风电场级无功分配给出 |
+| $P_{\mathrm{d}}^{\mathrm{ref}}$ | DFIG 有功参考，通常由 MPPT 决定 |
+| $i_{\mathrm{dr}}$ | 转子 d 轴电流，主要影响无功 |
+| $i_{\mathrm{qr}}$ | 转子 q 轴电流，主要影响有功 |
+| $1/(sT_{\mathrm{ir}}+1)$ | RSC 电流内环的一阶闭环等效 |
+| $1/(sT_{\mathrm{fr}}+1)$ | DFIG 功率测量反馈滤波或延迟 |
 
-需要注意，图中的 $s_{\mathrm{g}}$ 是 slip ratio，即转差率；而 PI 控制器中的 $s$ 是拉普拉斯算子，二者不是同一个量。
+注意：$s_{\mathrm{g}}$ 是 slip ratio，即转差率；PI 控制器中的 $s$ 是拉普拉斯算子，二者不是同一个量。
 
 ---
 
-## 3. DFIG 有功功率为什么与转差率有关
+## 3. DFIG 有功功率与转子 q 轴电流
 
-DFIG 与 IPMSM 的一个重要差别是：DFIG 的定子直接并网，因此定子电角频率由电网决定，记为 $\omega_{\mathrm{s}}$。转子机械速度相对于同步速度存在转差。
-
-若 $s_{\mathrm{g}}$ 表示转差率，则有：
+DFIG 定子直接并网，定子电角频率由电网决定。若 $s_{\mathrm{g}}$ 为转差率，则：
 
 $$
-p_{\mathrm{n}} \omega_{\mathrm{m}} = (1-s_{\mathrm{g}})\omega_{\mathrm{s}}
+p_{\mathrm{n}}\omega_{\mathrm{m}}=(1-s_{\mathrm{g}})\omega_{\mathrm{s}}.
 $$
 
-其中，$p_{\mathrm{n}}$ 是极对数，$\omega_{\mathrm{m}}$ 是机械角速度。
-
-在定子磁链定向下，DFIG 的电磁转矩近似与转子 q 轴电流成正比：
+定子磁链定向下，电磁转矩近似为：
 
 $$
-T_{\mathrm{e}} = \frac{3}{2}p_{\mathrm{n}}\frac{L_{\mathrm{m}}}{L_{\mathrm{s}}}\psi_{\mathrm{s}} i_{\mathrm{qr}}
+T_{\mathrm{e}}=\frac{3}{2}p_{\mathrm{n}}\frac{L_{\mathrm{m}}}{L_{\mathrm{s}}}\psi_{\mathrm{s}}i_{\mathrm{qr}}.
 $$
 
-机械功率为：
-
-$$
-P_{\mathrm{d}} = T_{\mathrm{e}} \omega_{\mathrm{m}}
-$$
-
-代入：
+由：
 
 $$
 \omega_{\mathrm{m}}=\frac{(1-s_{\mathrm{g}})\omega_{\mathrm{s}}}{p_{\mathrm{n}}}
 $$
 
-可得：
+代入 $P_{\mathrm{d}}=T_{\mathrm{e}}\omega_{\mathrm{m}}$，极对数 $p_{\mathrm{n}}$ 会抵消，因此得到论文使用的有功映射：
 
 $$
-P_{\mathrm{d}} = (1-s_{\mathrm{g}})\frac{3L_{\mathrm{m}}\omega_{\mathrm{s}}\psi_{\mathrm{s}}}{2L_{\mathrm{s}}}i_{\mathrm{qr}}
+P_{\mathrm{d}}=(1-s_{\mathrm{g}})\frac{3L_{\mathrm{m}}\omega_{\mathrm{s}}\psi_{\mathrm{s}}}{2L_{\mathrm{s}}}i_{\mathrm{qr}}.
 $$
 
-因此，如果 $\omega_{\mathrm{s}}$ 使用电角速度，极对数 $p_{\mathrm{n}}$ 会在 $T_{\mathrm{e}}\omega_{\mathrm{m}}$ 中抵消。这也解释了为什么论文中的有功表达式没有显式写出 $p_{\mathrm{n}}$。
-
-从电机控制角度理解，就是：
-
-$$
-i_{\mathrm{qr}} \rightarrow T_{\mathrm{e}}
-$$
-
-$$
-T_{\mathrm{e}} \times \omega_{\mathrm{m}} \rightarrow P_{\mathrm{d}}
-$$
-
-而 DFIG 的机械速度与同步电角速度之间存在转差，所以最终有功功率表达式中会出现 $(1-s_{\mathrm{g}})$。
+因此，$i_{\mathrm{qr}}$ 是 DFIG 有功功率动态模型中的主要控制通道。
 
 ---
 
-## 4. DFIG 无功功率中的负补偿项 $Q_{\mathrm{m}}$
+## 4. DFIG 无功功率与转子 d 轴电流
 
-Fig. 2 中的无功功率可以理解为：
+Fig. 2 中 DFIG 无功功率写成：
 
 $$
-Q_{\mathrm{d}} = K_{\mathrm{Q}} i_{\mathrm{dr}} - Q_{\mathrm{m}}
+Q_{\mathrm{d}}=K_{\mathrm{Q}}i_{\mathrm{dr}}-Q_{\mathrm{m}}.
 $$
 
 其中：
 
 $$
-K_{\mathrm{Q}} = \frac{3L_{\mathrm{m}}\omega_{\mathrm{s}}\psi_{\mathrm{s}}}{2L_{\mathrm{s}}}
+K_{\mathrm{Q}}=\frac{3L_{\mathrm{m}}\omega_{\mathrm{s}}\psi_{\mathrm{s}}}{2L_{\mathrm{s}}},
+\quad
+Q_{\mathrm{m}}=\frac{3\omega_{\mathrm{s}}\psi_{\mathrm{s}}^2}{2L_{\mathrm{s}}}.
 $$
 
-$$
-Q_{\mathrm{m}} = \frac{3\omega_{\mathrm{s}}\psi_{\mathrm{s}}^2}{2L_{\mathrm{s}}}
-$$
-
-这里的 $Q_{\mathrm{m}}$ 是建立定子磁链所需的励磁无功。
-
-采用定子磁链定向：
+$Q_{\mathrm{m}}$ 表示建立定子磁链所需的励磁无功偏置。简要推导如下。定子磁链定向下：
 
 $$
-\psi_{\mathrm{sd}}=\psi_{\mathrm{s}},\qquad \psi_{\mathrm{sq}}=0
+\psi_{\mathrm{sd}}=\psi_{\mathrm{s}},
+\quad
+\psi_{\mathrm{sq}}=0.
 $$
 
-定子磁链方程为：
+定子 d 轴磁链满足：
 
 $$
-\psi_{\mathrm{sd}}=L_{\mathrm{s}} i_{\mathrm{sd}}+L_{\mathrm{m}} i_{\mathrm{dr}}
+\psi_{\mathrm{sd}}=L_{\mathrm{s}}i_{\mathrm{sd}}+L_{\mathrm{m}}i_{\mathrm{dr}},
+\quad
+i_{\mathrm{sd}}=\frac{\psi_{\mathrm{s}}-L_{\mathrm{m}}i_{\mathrm{dr}}}{L_{\mathrm{s}}}.
 $$
 
-由此得到：
+忽略定子电阻和磁链暂态时，近似有：
 
 $$
-i_{\mathrm{sd}}=\frac{\psi_{\mathrm{s}}-L_{\mathrm{m}} i_{\mathrm{dr}}}{L_{\mathrm{s}}}
+v_{\mathrm{sd}}\approx 0,
+\quad
+v_{\mathrm{sq}}\approx \omega_{\mathrm{s}}\psi_{\mathrm{s}}.
 $$
 
-忽略定子电阻和磁链暂态项时，可近似认为：
+dq 坐标下三相瞬时无功可写成：
 
 $$
-v_{\mathrm{sd}}\approx 0
+Q=\frac{3}{2}\left(v_{\mathrm{sq}}i_{\mathrm{sd}}-v_{\mathrm{sd}}i_{\mathrm{sq}}\right).
 $$
 
-$$
-v_{\mathrm{sq}}\approx \omega_{\mathrm{s}}\psi_{\mathrm{s}}
-$$
-
-由 dq 坐标下的无功表达式可知，无功中包含两部分：
-
-1. 与 $i_{\mathrm{dr}}$ 有关的可控无功；
-2. 与 $\psi_{\mathrm{s}}$ 有关的励磁无功需求。
-
-按照论文中“DFIG 对外输出无功为正”的符号约定，整理后得到：
+将上述近似和 $i_{\mathrm{sd}}$ 代入，并按“DFIG 对外输出无功为正”的符号约定整理，即得到 $Q_{\mathrm{d}}=K_{\mathrm{Q}}i_{\mathrm{dr}}-Q_{\mathrm{m}}$。因此，当 $i_{\mathrm{dr}}=0$ 时：
 
 $$
-Q_{\mathrm{d}} =
-\frac{3L_{\mathrm{m}}\omega_{\mathrm{s}}\psi_{\mathrm{s}}}{2L_{\mathrm{s}}}i_{\mathrm{dr}}
--
-
-\frac{3\omega_{\mathrm{s}}\psi_{\mathrm{s}}^2}{2L_{\mathrm{s}}}
+Q_{\mathrm{d}}=-Q_{\mathrm{m}}.
 $$
 
-因此，当 $i_{\mathrm{dr}}=0$ 时：
-
-$$
-Q_{\mathrm{d}} = -Q_{\mathrm{m}}
-$$
-
-这说明 DFIG 会从电网吸收励磁无功。若希望 DFIG 对外无功为零，则需要：
-
-$$
-i_{\mathrm{dr}}=\frac{\psi_{\mathrm{s}}}{L_{\mathrm{m}}}
-$$
-
-因此，转子 d 轴电流 $i_{\mathrm{dr}}$ 的作用之一就是补偿异步机建立气隙磁场所需的励磁无功。
-
-这与 IPMSM 有明显不同。IPMSM 中永磁体提供主磁链，而 DFIG 作为异步机，需要通过励磁建立磁链，因此无功表达式中天然包含一个励磁无功偏置项。
+因此，$i_{\mathrm{dr}}$ 的作用是调节 DFIG 无功，并补偿异步机建立气隙磁场所需的励磁无功。
 
 ---
 
-## 5. Fig. 2 中反馈一阶环节的含义
+## 5. 功率反馈滤波环节
 
-Fig. 2 反馈支路中的一阶环节为：
-
-$$
-\frac{1}{sT_{\mathrm{fr}}+1}
-$$
-
-它不是 DFIG 本体，也不是机械环节，而是功率测量反馈滤波器或测量延迟。
-
-也就是说，功率外环实际比较的不是：
+Fig. 2 中的反馈一阶环节表示功率测量滤波或测量延迟：
 
 $$
-Q_{\mathrm{d}}^{\mathrm{ref}}-Q_{\mathrm{d}}
+Q_{\mathrm{d},\mathrm{f}}=\frac{1}{sT_{\mathrm{fr}}+1}Q_{\mathrm{d}},
+\quad
+P_{\mathrm{d},\mathrm{f}}=\frac{1}{sT_{\mathrm{fr}}+1}P_{\mathrm{d}}.
 $$
 
-而是：
+因此功率外环比较的是滤波后的反馈量，例如：
 
 $$
-Q_{\mathrm{d}}^{\mathrm{ref}}-Q_{\mathrm{d},\mathrm{f}}
+Q_{\mathrm{d}}^{\mathrm{ref}}-Q_{\mathrm{d},\mathrm{f}}.
 $$
 
-其中：
-
-$$
-Q_{\mathrm{d},\mathrm{f}}=\frac{1}{sT_{\mathrm{fr}}+1}Q_{\mathrm{d}}
-$$
-
-有功环同理：
-
-$$
-P_{\mathrm{d},\mathrm{f}}=\frac{1}{sT_{\mathrm{fr}}+1}P_{\mathrm{d}}
-$$
-
-这个环节用于模拟实际控制中功率测量不能瞬时获得，并滤除开关纹波、采样噪声和功率计算中的高频波动。
-
-与 IPMSM 类比，它更像速度反馈或电流反馈中的低通滤波器，而不是机械对象 $1/(Js+B)$。
+该一阶环节是后续状态空间模型中的动态状态来源之一。
 
 ---
 
-## 6. DFIG 控制结构与 IPMSM 控制结构的类比
+## 6. DFIG 控制结构的基本类比
 
-可以作如下类比：
+Fig. 2 的控制对象不是机械速度，而是并网 DFIG 的有功/无功功率。与常见电机控制结构的对应关系可以简化理解为：
 
-|IPMSM 控制              |DFIG RSC 控制                 |
-|---------------------|---------------------------|
-|速度外环 PI               |有功/无功功率外环 PI                |
-|电流内环控制定子电流 $i_{\mathrm{d}},i_{\mathrm{q}}$  |电流内环控制转子电流 $i_{\mathrm{dr}},i_{\mathrm{qr}}$  |
-|$i_{\mathrm{q}}$ 主要控制转矩          |$i_{\mathrm{qr}}$ 主要控制有功             |
-|$i_{\mathrm{d}}$ 用于 MTPA、弱磁或磁链调节 |$i_{\mathrm{dr}}$ 主要控制无功/励磁          |
-|机械对象为 $1/(Js+B)$      |功率对象为电流到 $P,Q$ 的静态映射加电流内环动态 |
-|定子由逆变器供电              |定子直接并网，转子侧由 RSC 控制          |
+| IPMSM 控制 | DFIG RSC 控制 |
+|---|---|
+| 速度外环 PI | 有功/无功功率外环 PI |
+| 电流内环控制定子电流 | 电流内环控制转子电流 |
+| $i_{\mathrm{q}}$ 主要控制转矩 | $i_{\mathrm{qr}}$ 主要控制有功 |
+| $i_{\mathrm{d}}$ 调节磁链/弱磁 | $i_{\mathrm{dr}}$ 主要控制无功/励磁 |
 
-因此，Fig. 2 的控制对象不是机械速度，而是并网 DFIG 的有功和无功功率。
+这个类比只用于理解控制层级；后续推导仍以论文给出的 DFIG 功率等效模型为准。
 
 ---
 
-## 7. Fig. 3 中 ES 功率控制模型理解
+## 7. ES 功率控制等效模型
 
-Fig. 3 中 ES 的控制结构可以按照与 Fig. 2 类似的方式理解：
+Fig. 3 中 ES 通过 DC/DC 变换器控制充放电功率。其等效结构为：
 
 $$
 \text{功率外环 PI}
-+
+\rightarrow
 \text{DC/DC 电感电流内环一阶等效}
-+
-\text{功率反馈滤波}
+\rightarrow
+\text{功率反馈滤波}.
 $$
 
-其中：
+主要变量为：
 
-* $P_{\mathrm{e}}^{\mathrm{ch},\mathrm{ref}}<0$ 是充电功率参考；
-* $P_{\mathrm{e}}^{\mathrm{dis},\mathrm{ref}}>0$ 是放电功率参考；
-* $i_{\mathrm{L}}^{\mathrm{ref}}$ 是 DC/DC 电感电流参考；
-* $1/(sT_{\mathrm{id}}+1)$ 是 DC/DC 电流内环闭环动态等效；
-* $1/(sT_{\mathrm{fd}}+1)$ 是 ES 功率反馈滤波或测量延迟；
-* $U_{\mathrm{e}}^{\mathrm{ch}}$ 和 $U_{\mathrm{e}}^{\mathrm{dis}}$ 是充放电状态下的 ES 电压。
+| 变量/环节 | 含义 |
+|---|---|
+| $P_{\mathrm{e}}^{\mathrm{ch},\mathrm{ref}}<0$ | ES 充电功率参考 |
+| $P_{\mathrm{e}}^{\mathrm{dis},\mathrm{ref}}>0$ | ES 放电功率参考 |
+| $i_{\mathrm{L}}^{\mathrm{ref}}$ | DC/DC 电感电流参考 |
+| $1/(sT_{\mathrm{id}}+1)$ | DC/DC 电流内环的一阶闭环等效 |
+| $1/(sT_{\mathrm{fd}}+1)$ | ES 功率反馈滤波或测量延迟 |
 
-从功率外环角度看，ES 的被控对象是：
-
-$$
-i_{\mathrm{L}}^{\mathrm{ref}} \rightarrow i_{\mathrm{L}} \rightarrow P_{\mathrm{e}}
-$$
-
-由于 DC 侧功率近似为：
+DC 侧功率近似为：
 
 $$
-P_{\mathrm{e}} = U_{\mathrm{e}} i_{\mathrm{L}}
+P_{\mathrm{e}}=U_{\mathrm{e}}i_{\mathrm{L}}.
 $$
 
-因此功率外环看到的等效对象可以写成：
+因此 ES 功率环看到的等效对象可写成：
 
 $$
-G_{\mathrm{ES}}(s) \approx \frac{U_{\mathrm{e}}}{sT_{\mathrm{id}}+1}
+G_{\mathrm{ES}}(s)\approx\frac{U_{\mathrm{e}}}{sT_{\mathrm{id}}+1}.
 $$
 
-也就是说，ES 功率环控制的不是 SOC 本身，而是储能经 DC/DC 变换器输出或吸收的有功功率 $P_{\mathrm{e}}$。SOC 是上层一致性控制中的慢状态变量。
+ES 功率环直接控制的是 $P_{\mathrm{e}}$，而 SOC 是上层一致性控制中的慢状态变量。
 
 ---
 
 ## 8. DFIG 无功功率约束
 
-DFIG 的无功参考需要满足容量约束：
+DFIG 的无功参考需要满足视在功率容量约束：
 
 $$
 |Q_{\mathrm{d},i}^{\mathrm{ref}}|
@@ -306,27 +232,13 @@ $$
 \sqrt{S_{\mathrm{d},\mathrm{N}}^2-P_{\mathrm{d},i}^2}
 $$
 
-该式来自视在功率关系：
-
-$$
-S^2=P^2+Q^2
-$$
-
-即：
+其来源是：
 
 $$
 P_{\mathrm{d},i}^2+Q_{\mathrm{d},i}^2\leq S_{\mathrm{d},\mathrm{N}}^2
 $$
 
-因此，当前有功 $P_{\mathrm{d},i}$ 越大，剩余可用无功容量越小。
-
-这与 IPMSM 中电流限幅圆有类似直觉：
-
-$$
-i_{\mathrm{d}}^2+i_{\mathrm{q}}^2\leq i_{\max}^2
-$$
-
-当一个方向的分量占用越多，另一个方向的可调空间就越小。
+因此，当前有功 $P_{\mathrm{d},i}$ 越大，DFIG 剩余可用无功容量越小。该约束会影响后续风电场级无功分配中每台 DFIG 可承担的 $Q_{\mathrm{d},i}^{\mathrm{ref}}$ 上限。
 
 ---
 
@@ -334,418 +246,156 @@ $$
 
 ES 的功率约束同时受到 DC/DC 变换器容量和 GSC 剩余容量限制。
 
-### 9.1 放电约束
-
-放电时：
+符号约定为：
 
 $$
-P_{\mathrm{e}}^{\mathrm{dis},\mathrm{ref}}>0
+P_{\mathrm{e}}^{\mathrm{dis},\mathrm{ref}}>0,
+\quad
+P_{\mathrm{e}}^{\mathrm{ch},\mathrm{ref}}<0.
 $$
 
-约束为：
+对应约束为：
 
 $$
+\begin{cases}
+\displaystyle
 |P_{\mathrm{e},i}^{\mathrm{dis},\mathrm{ref}}|
 \leq
-\min
-\left(
-P_{\mathrm{DC/DC}}^{\mathrm{lim}},
-P_{\mathrm{GSC}}^{\mathrm{lim}}-P_{\mathrm{r},i}
-\right)
-$$
-
-含义是：
-
-1. ES 放电功率不能超过 DC/DC 变换器额定功率；
-2. ES 放电功率还不能使 GSC 的传输功率超过其容量限制。
-
-放电时，ES 向直流母线送出功率，这部分功率通常需要通过 GSC 送到电网，因此会占用 GSC 容量。
-
-### 9.2 充电约束
-
-充电时：
-
-$$
-P_{\mathrm{e}}^{\mathrm{ch},\mathrm{ref}}<0
-$$
-
-约束为：
-
-$$
+\min\left(P_{\mathrm{DC/DC}}^{\mathrm{lim}},P_{\mathrm{GSC}}^{\mathrm{lim}}-P_{\mathrm{r},i}\right),
+\\[8pt]
+\displaystyle
 |P_{\mathrm{e},i}^{\mathrm{ch},\mathrm{ref}}|
 \leq
-\min
-\left(
-P_{\mathrm{DC/DC}}^{\mathrm{lim}},
-P_{\mathrm{GSC}}^{\mathrm{lim}}+P_{\mathrm{r},i}
-\right)
+\min\left(P_{\mathrm{DC/DC}}^{\mathrm{lim}},P_{\mathrm{GSC}}^{\mathrm{lim}}+P_{\mathrm{r},i}\right).
+\end{cases}
 $$
 
-含义是：
-
-1. 充电功率同样不能超过 DC/DC 变换器额定功率；
-2. 充电状态下，ES 从直流母线吸收功率，其与转子侧功率在 GSC 功率负担上的方向关系不同，因此 GSC 约束项写成 $P_{\mathrm{GSC}}^{\mathrm{lim}}+P_{\mathrm{r},i}$。
-
-最重要的理解是：
-
-$$
-\text{ES 的充放电能力}
-=
-
-\min(\text{DC/DC 容量},\text{GSC 剩余容量})
-$$
+也就是说，ES 的充放电功率既不能超过 DC/DC 变换器容量，也不能使 GSC 的功率交换超过容量限制。放电时 ES 向直流母线送出功率，会占用 GSC 剩余容量；充电时 ES 从直流母线吸收功率，与转子侧功率在 GSC 负担上的方向相反，因此式中分别出现 $P_{\mathrm{GSC}}^{\mathrm{lim}}-P_{\mathrm{r},i}$ 和 $P_{\mathrm{GSC}}^{\mathrm{lim}}+P_{\mathrm{r},i}$。
 
 ---
 
 ## 10. 风电场级有功分配逻辑
 
-本文中 DFIG 的有功参考 $P_{\mathrm{d}}^{\mathrm{ref}}$ 由 MPPT 决定。若 TSO 给出整个风电场有功指令 $P_{\mathrm{wf}}^{\mathrm{ref}}$，则 ES 需要承担的有功指令为：
+本文中 DFIG 有功参考 $P_{\mathrm{d}}^{\mathrm{ref}}$ 主要由 MPPT 决定。若 TSO 给出风电场总有功指令 $P_{\mathrm{wf}}^{\mathrm{ref}}$，则 ES 侧承担剩余有功：
 
 $$
 P_{\mathrm{wf},\mathrm{e}}^{\mathrm{ref}}
 =
-
 P_{\mathrm{wf}}^{\mathrm{ref}}
-
 -\sum_{i=1}^{N}P_{\mathrm{d},i}
 $$
 
-风电场有功平衡为：
-
-$$
-\Delta P =
-P_{\mathrm{wf}}^{\mathrm{ref}}
--
-
-\sum_{i=1}^{N}
-(P_{\mathrm{d},i}+P_{\mathrm{e},i})
-=0
-$$
-
-> 这里 $\Delta P$ 式中再次出现 $\sum P_{\mathrm{d},i}$ 并不是重复计算 DFIG 有功，而是从风电场总有功平衡角度写出的实际功率偏差。由 $P_{\mathrm{wf},\mathrm{e}}^{\mathrm{ref}}=P_{\mathrm{wf}}^{\mathrm{ref}}-\sum_iP_{\mathrm{d},i}$ 可知，$\Delta P=P_{\mathrm{wf},\mathrm{e}}^{\mathrm{ref}}-\sum_iP_{\mathrm{e},i}$，因此一致性控制的目标是使所有 ES 的实际有功输出之和跟踪该剩余有功指令。
-
-因此可以理解为：
-
-$$
-\text{DFIG 尽量运行在 MPPT}
-$$
-
-$$
-\text{ES 负责补偿风电场有功偏差}
-$$
-
-这也是本文将 ES 加入 DFIG 风机直流母线的主要目的之一：在不显著牺牲风机 MPPT 的情况下，提高风电场有功调节能力和平滑能力。
-
----
-
-## 11. ES 一致性变量的作用
-
-在风电场级有功分配中，TSO 给出整个风电场的有功指令 $P_{\mathrm{wf}}^{\mathrm{ref}}$，而各台 DFIG 的有功功率 $P_{\mathrm{d},i}$ 主要由 MPPT 和风速决定。因此，所有 ES 需要共同承担的有功功率指令为：
-
-$$
-P_{\mathrm{wf},\mathrm{e}}^{\mathrm{ref}}
-=
-
-P_{\mathrm{wf}}^{\mathrm{ref}}
-
--\sum_{i=1}^{N}P_{\mathrm{d},i}
-$$
-
-也就是说，ES 的总任务是使：
-
-$$
-\sum_{i=1}^{N}P_{\mathrm{e},i}
-=
-
-P_{\mathrm{wf},\mathrm{e}}^{\mathrm{ref}}
-$$
-
-从风电场总有功平衡角度看，这已经足够保证：
+对应风电场有功平衡为：
 
 $$
 \Delta P
 =
-
 P_{\mathrm{wf}}^{\mathrm{ref}}
-
 -\sum_{i=1}^{N}
 (P_{\mathrm{d},i}+P_{\mathrm{e},i})
 =0
 $$
 
-但是，这个总量关系只说明“所有 ES 合起来应该输出或吸收多少功率”，并没有说明“每一个 ES 应该承担多少”。例如，若总共需要 ES 放电 $0.6~\mathrm{pu}$，可以平均分配，也可以让某些 ES 多放电、某些 ES 少放电。满足总功率平衡的分配方式有无穷多种。
+因此，本节的分工可以概括为：DFIG 尽量保持 MPPT，ES 负责补偿风电场有功偏差。这也是本文将 ES 接入 DFIG 直流母线的目的之一：在不显著牺牲风机 MPPT 的情况下，提高风电场有功调节和平滑能力。
 
-因此，论文需要进一步引入一个分配准则。这个准则就是 ES 一致性变量 [27，Khazaei et al., 2020, “Consensus-Based Demand Response of PMSG Wind Turbines With Distributed Energy Storage Considering Capability Curves”]：
+---
 
-$$
-E_{\mathrm{e},i}=K_1P_{\mathrm{e},i}+K_2S_{\mathrm{e},i}
-$$
+## 11. ES 一致性变量的作用
 
-并要求：
+第 10 节只确定了 ES 总有功任务：
 
 $$
-E_{\mathrm{e},1}=E_{\mathrm{e},2}=\cdots=E_{\mathrm{e},N}
+\sum_{i=1}^{N}P_{\mathrm{e},i}=P_{\mathrm{wf},\mathrm{e}}^{\mathrm{ref}}.
+$$
+
+但该式没有说明每个 ES 应承担多少功率。若只做平均功率分配，会忽略 SOC 差异；若只追求 SOC 一致，又可能不能快速跟踪风电场有功指令。因此，论文引入兼顾功率和 SOC 的一致性变量 [27，Khazaei et al., 2020, “Consensus-Based Demand Response of PMSG Wind Turbines With Distributed Energy Storage Considering Capability Curves”]：
+
+$$
+E_{\mathrm{e},i}=K_1P_{\mathrm{e},i}+K_2S_{\mathrm{e},i}.
 $$
 
 其中，$P_{\mathrm{e},i}$ 是第 $i$ 个 ES 的有功功率，$S_{\mathrm{e},i}$ 是其 SOC，$K_1$ 和 $K_2$ 是权重系数。
 
-> SOC（State of Charge，荷电状态）可以理解为储能单元当前剩余能量占额定容量的比例，通常取值为 $0$ 到 $1$ 或表示为百分比。它描述的是“还剩多少电”，而功率 $P_{\mathrm{e}}$ 描述的是“当前充放电有多快”。在本文中，若约定 $P_{\mathrm{e}}>0$ 表示放电，则 SOC 会下降；若 $P_{\mathrm{e}}<0$ 表示充电，则 SOC 会上升。引入 SOC 的意义在于，多个 ES 参与风电场有功调节时，不能只让它们平均分担功率，还应考虑各自剩余能量状态：高 SOC 的 ES 更适合多放电，低 SOC 的 ES 更适合少放电或多充电。因此，论文将 SOC 与 ES 功率共同构成一致性变量 $E_{\mathrm{e},i}=K_1P_{\mathrm{e},i}+K_2S_{\mathrm{e},i}$，使储能系统在补偿风电场有功偏差的同时，也能兼顾 SOC 均衡和储能运行健康。
+---
+
+### 11.1 一致性目标
+
+论文要求各 ES 的一致性变量收敛到同一值：
+
+$$
+E_{\mathrm{e},1}=E_{\mathrm{e},2}=\cdots=E_{\mathrm{e},N}.
+$$
+
+这并不等价于所有 ES 功率完全相同，也不等价于 SOC 瞬间完全相同；它表示各 ES 在“当前功率分担”和“剩余能量状态”组合后的指标上达成一致。
+
+> SOC（State of Charge，荷电状态）表示储能剩余能量占额定容量的比例。若约定 $P_{\mathrm{e}}>0$ 表示放电，则 SOC 会下降；$P_{\mathrm{e}}<0$ 表示充电，则 SOC 会上升。引入 SOC 是为了避免只按功率平均分配而造成部分 ES 过度充放电。
 
 ---
 
-### 11.1 为什么不能只让功率平均分配
+### 11.2 从公式看功率分配
 
-一种最简单的想法是让所有 ES 平均分担功率，即：
-
-$$
-P_{\mathrm{e},1}=P_{\mathrm{e},2}=\cdots=P_{\mathrm{e},N}
-$$
-
-这样做可以实现功率平均分配，但问题是它完全忽略了 SOC 差异。
-
-如果某个 ES 的 SOC 已经较低，而另一个 ES 的 SOC 较高，仍然让它们承担相同放电功率，就可能导致低 SOC 的 ES 进一步过度放电；反过来，在充电工况下，如果所有 ES 平均充电，也可能导致高 SOC 的 ES 更接近上限。
-
-因此，单纯的功率平均分配并不一定有利于储能系统的长期健康状态。
-
----
-
-### 11.2 为什么不能只让 SOC 一致
-
-另一种想法是只让所有 ES 的 SOC 保持一致，即：
+若所有 ES 最终满足：
 
 $$
-S_{\mathrm{e},1}=S_{\mathrm{e},2}=\cdots=S_{\mathrm{e},N}
+K_1P_{\mathrm{e},i}+K_2S_{\mathrm{e},i}=E_{\mathrm{e}}^\ast,
 $$
 
-但这也不够。因为风电场首先需要满足有功调度指令，也就是 ES 必须快速补偿：
+则：
 
 $$
-P_{\mathrm{wf}}^{\mathrm{ref}}
--\sum_{i=1}^{N}P_{\mathrm{d},i}
+P_{\mathrm{e},i}=\frac{E_{\mathrm{e}}^\ast}{K_1}-\frac{K_2}{K_1}S_{\mathrm{e},i}.
 $$
-
-SOC 是能量状态，变化速度通常比功率响应慢得多。如果只关注 SOC 一致性，可能无法保证 ES 的实际有功功率之和快速跟踪调度差额。
-
-因此，ES 的分配目标需要同时考虑两个方面：
-
-$$
-\text{功率分担}
-$$
-
-和：
-
-$$
-\text{SOC 协调}
-$$
-
-这正是论文引入组合一致性变量 $E_{\mathrm{e},i}$ 的原因。
-
----
-
-### 11.3 $E_{\mathrm{e},i}=K_1P_{\mathrm{e},i}+K_2S_{\mathrm{e},i}$ 的含义
-
-论文定义：
-
-$$
-E_{\mathrm{e},i}=K_1P_{\mathrm{e},i}+K_2S_{\mathrm{e},i}
-$$
-
-可以把 $E_{\mathrm{e},i}$ 理解成第 $i$ 个 ES 的“综合分担指标”。它不是一个直接的物理功率，也不是单纯的 SOC，而是把功率和 SOC 加权组合后得到的协调变量。
-
-要求所有 ES 满足：
-
-$$
-E_{\mathrm{e},1}=E_{\mathrm{e},2}=\cdots=E_{\mathrm{e},N}
-$$
-
-含义是：各 ES 不一定要输出完全相同的功率，也不一定要求 SOC 在瞬间完全相同，而是让它们在“功率水平”和“SOC 状态”共同构成的指标上达到一致。
-
-换句话说，论文不是简单地做平均功率分配，而是做一种兼顾 SOC 的功率分配。
-
----
-
-### 11.4 从公式看它如何影响功率分配
-
-假设所有 ES 的一致性变量最终收敛到同一个值 $E_{\mathrm{e}}^\ast$，则有：
-
-$$
-K_1P_{\mathrm{e},i}+K_2S_{\mathrm{e},i}=E_{\mathrm{e}}^\ast
-$$
-
-若 $K_1\neq 0$，可写为：
-
-$$
-P_{\mathrm{e},i}
-=
-
-\frac{E_{\mathrm{e}}^\ast}{K_1}
-
--\frac{K_2}{K_1}S_{\mathrm{e},i}
-$$
-
-这说明第 $i$ 个 ES 的功率分配不只取决于总功率需求，也会受到自身 SOC 的影响。
 
 再结合总功率约束：
 
 $$
-\sum_{i=1}^{N}P_{\mathrm{e},i}
-=
-P_{\mathrm{wf},\mathrm{e}}^{\mathrm{ref}}
+\sum_{i=1}^{N}P_{\mathrm{e},i}=P_{\mathrm{wf},\mathrm{e}}^{\mathrm{ref}},
 $$
 
-可以得到类似如下的关系：
+可得到：
 
 $$
-P_{\mathrm{e},i}
-=
-
-\frac{P_{\mathrm{wf},\mathrm{e}}^{\mathrm{ref}}}{N}
-
--\frac{K_2}{K_1}
-\left(
-S_{\mathrm{e},i}-\bar S_{\mathrm{e}}
-\right)
+P_{\mathrm{e},i}=\frac{P_{\mathrm{wf},\mathrm{e}}^{\mathrm{ref}}}{N}-\frac{K_2}{K_1}\left(S_{\mathrm{e},i}-\bar S_{\mathrm{e}}\right),
+\quad
+\bar S_{\mathrm{e}}=\frac{1}{N}\sum_{i=1}^{N}S_{\mathrm{e},i}.
 $$
 
-其中：
-
-$$
-\bar S_{\mathrm{e}}=
-\frac{1}{N}
-\sum_{i=1}^{N}S_{\mathrm{e},i}
-$$
-
-这说明，ES 的功率分配可以看成两部分：
-
-$$
-\frac{P_{\mathrm{wf},\mathrm{e}}^{\mathrm{ref}}}{N}
-$$
-
-是平均功率分担项；
-
-$$
--\frac{K_2}{K_1}
-\left(
-S_{\mathrm{e},i}-\bar S_{\mathrm{e}}
-\right)
-$$
-
-是由 SOC 偏差引起的修正项。
-
-因此，SOC 不同的 ES 不会被强制分配完全相同的功率，而是会根据 SOC 偏差进行调整。
+因此，ES 的有功分配可以看成“平均功率分担项 + SOC 偏差修正项”。$K_2/K_1$ 决定 SOC 偏差对功率分配的影响强度和方向；其符号应与 $P_{\mathrm{e}}$ 的充放电符号约定一致。
 
 ---
 
-### 11.5 关于 $K_1$ 和 $K_2$ 的理解
+### 11.3 与分布式一致性控制的关系
 
-$K_1$ 和 $K_2$ 决定功率分担和 SOC 协调之间的权重。
-
-如果 $K_2$ 的影响较小，则一致性变量主要由 $P_{\mathrm{e},i}$ 决定，此时控制效果更接近功率平均分配。
-
-如果 $K_2$ 的影响较大，则 SOC 偏差对功率分配的影响更明显，系统会更重视不同 ES 之间的 SOC 协调。
-
-需要注意，$K_1$ 和 $K_2$ 的符号和大小应与功率符号约定一致。本文中通常可理解为 $P_{\mathrm{e}}>0$ 表示放电，$P_{\mathrm{e}}<0$ 表示充电；在这种约定下，如果希望高 SOC 的 ES 在放电时承担更多功率、低 SOC 的 ES 在充电时获得更多补能，则 $K_2/K_1$ 的符号需要按该目标合理选取。论文这里只说明 $K_1$ 和 $K_2$ 是常数，并未在该处展开其具体整定方法。
-
-因此，阅读时不应只把 $K_1$ 和 $K_2$ 理解为形式参数，而应理解为功率分担与 SOC 均衡之间的权衡系数。
-
----
-
-### 11.6 一致性变量与分布式控制的关系
-
-引入 $E_{\mathrm{e},i}$ 之后，每个 ES 不需要知道全场所有 ES 的状态，而只需要和通信邻居交换一致性变量或相关状态信息。典型的一致性控制思想是让每个节点根据邻居差异调整自身参考：
+引入 $E_{\mathrm{e},i}$ 后，每个 ES 只需要和通信邻居交换一致性变量或相关状态信息，并根据邻居差异：
 
 $$
 E_{\mathrm{e},j}-E_{\mathrm{e},i}
 $$
 
-若某个 ES 的一致性变量与邻居不同，则通过调整 $P_{\mathrm{e},i}^{\mathrm{ref}}$ 使差异逐渐减小。最终所有 ES 的一致性变量趋于相同：
+调整自身有功参考，使 $E_{\mathrm{e},i}$ 逐步趋同。在 leader-follower 结构下，leader 节点还接收全场有功偏差 $\Delta P$，从而保证 ES 既能内部协调 SOC，又能共同完成风电场总有功指令。
 
-$$
-E_{\mathrm{e},1}=E_{\mathrm{e},2}=\cdots=E_{\mathrm{e},N}
-$$
-
-同时，在 leader-follower 结构下，部分 leader 节点还会接收全场有功偏差 $\Delta P$，从而保证 ES 不只是内部达成一致，还能共同完成风电场总有功指令。
-
-因此，ES 一致性变量的作用有两层：
-
-$$
-\text{局部层面：通过邻居通信实现分布式协调}
-$$
-
-$$
-\text{全局层面：共同消除风电场有功偏差}
-$$
-
----
-
-### 11.7 物理意义总结
-
-引入 ES 一致性变量的目的不是为了增加一个数学形式，而是为了回答“有功差额由所有 ES 分担时，具体该怎么分”的问题。
-
-如果只考虑总功率平衡：
-
-$$
-\sum_{i=1}^{N}P_{\mathrm{e},i}
-=
-
-P_{\mathrm{wf},\mathrm{e}}^{\mathrm{ref}}
-$$
-
-那么分配方式不唯一。
-
-如果只考虑功率平均，可能忽略 SOC，导致部分 ES 过度充放电。
-
-如果只考虑 SOC 均衡，又可能无法快速满足风电场有功调度指令。
-
-因此，论文引入：
-
-$$
-E_{\mathrm{e},i}=K_1P_{\mathrm{e},i}+K_2S_{\mathrm{e},i}
-$$
-
-并要求：
-
-$$
-E_{\mathrm{e},1}=E_{\mathrm{e},2}=\cdots=E_{\mathrm{e},N}
-$$
-
-其本质是构造一个兼顾功率和 SOC 的分布式分配指标。
-
-这一设计可以理解为：
-
-$$
-\boxed{
-\text{ES 不只是平均分担有功功率，而是在满足总有功调度的同时，兼顾 SOC 均衡和储能健康状态。}
-}
-$$
-
-因此，第 11 小节可以概括为：ES 一致性变量 $E_{\mathrm{e},i}$ 是风电场有功差额在多个分布式储能之间进行合理分配的协调指标，它把快速功率支撑和慢速 SOC 管理统一到了同一个分布式一致性控制框架中。
+因此，$E_{\mathrm{e},i}$ 的作用可以概括为：把快速功率支撑和慢速 SOC 管理统一到同一个分布式一致性控制变量中。
 
 ---
 
 ## 12. 风电场级无功分配逻辑
 
-本文中，ES 只用于提供有功功率支撑，不参与无功调节。因此，当风电场无功输出与调度指令之间存在偏差时，该无功偏差只能由各台 DFIG 共同承担。
-
-风电场级无功平衡关系为：
+本文中 ES 只提供有功支撑，不参与无功调节。因此风电场无功偏差由各台 DFIG 共同承担。风电场级无功平衡为：
 
 $$
 Q_{\mathrm{wf},\mathrm{d}}^{\mathrm{ref}}=Q_{\mathrm{wf}}^{\mathrm{ref}}
 $$
 
 $$
-\Delta Q=
+\Delta Q
+=
 Q_{\mathrm{wf}}^{\mathrm{ref}}
 -
-
 \sum_{i=1}^{N}Q_{\mathrm{d},i}
-
 =0
 $$
 
-其中，$Q_{\mathrm{wf}}^{\mathrm{ref}}$ 是整个风电场的无功调度指令，$Q_{\mathrm{d},i}$ 是第 $i$ 台 DFIG 的无功输出。该式表示，所有 DFIG 的无功输出之和应跟踪风电场级无功指令。
-
-与 ES 有功分配不同，DFIG 无功分配并不需要考虑类似 SOC 的能量状态。DFIG 提供无功主要受当前容量约束限制，即在当前有功输出 $P_{\mathrm{d},i}$ 下，其无功能力满足：
+其中，$Q_{\mathrm{wf}}^{\mathrm{ref}}$ 是风电场无功调度指令，$Q_{\mathrm{d},i}$ 是第 $i$ 台 DFIG 的无功输出。每台 DFIG 的无功参考还受容量约束：
 
 $$
 |Q_{\mathrm{d},i}^{\mathrm{ref}}|
@@ -753,174 +403,107 @@ $$
 \sqrt{S_{\mathrm{d},\mathrm{N}}^2-P_{\mathrm{d},i}^2}
 $$
 
-因此，当前有功 $P_{\mathrm{d},i}$ 越大，该 DFIG 剩余可用于无功调节的容量越小。若简单要求所有 DFIG 输出相同无功，则可能导致部分无功能力较小的 DFIG 更早达到容量边界，而无功能力较大的 DFIG 没有充分利用。
-
-为此，论文没有采用平均无功分配，而是引入 DFIG 的无功一致性变量：
+因此，无功分配不宜简单平均，而应按各机组的可调无功能力进行比例分担。论文定义 DFIG 无功一致性变量：
 
 $$
 E_{\mathrm{d},i}=
 \frac{Q_{\mathrm{d},i}}{A_{\mathrm{d},i}}
 $$
 
-其中，$A_{\mathrm{d},i}$ 表示第 $i$ 台 DFIG 的可调无功空间。论文要求：
+其中，$A_{\mathrm{d},i}$ 表示第 $i$ 台 DFIG 的可调无功空间。要求：
 
 $$
 E_{\mathrm{d},1}=E_{\mathrm{d},2}=\cdots=E_{\mathrm{d},N}
 $$
 
-也就是：
+即：
 
 $$
 \frac{Q_{\mathrm{d},1}}{A_{\mathrm{d},1}}
 =
-
 \frac{Q_{\mathrm{d},2}}{A_{\mathrm{d},2}}
-
 =\cdots
-
 =\frac{Q_{\mathrm{d},N}}{A_{\mathrm{d},N}}
 $$
 
-该条件的含义是：各台 DFIG 不一定输出相同的无功功率，而是使其无功能力利用率保持一致。
-
-如果所有 DFIG 的无功一致性变量最终收敛到同一个值 $\eta$，则有：
+该条件表示各 DFIG 的无功能力利用率一致，而不是无功输出值完全相同。若一致性变量收敛到 $\eta$，则：
 
 $$
 Q_{\mathrm{d},i}=\eta A_{\mathrm{d},i}
 $$
 
-这说明第 $i$ 台 DFIG 分担的无功功率与其可调无功空间 $A_{\mathrm{d},i}$ 成正比。可调能力越大的 DFIG，承担的无功越多；可调能力越小的 DFIG，承担的无功越少。
-
-论文中 $A_{\mathrm{d},i}$ 根据无功偏差方向分为两种情况：
+即第 $i$ 台 DFIG 分担的无功与其可调空间成正比。论文中 $A_{\mathrm{d},i}$ 根据无功偏差方向取：
 
 $$
 A_{\mathrm{d},i}
 =
-
 \begin{cases}
 Q_{\mathrm{d},i,0}, & \Delta Q<0\\
 \sqrt{S_{\mathrm{d},\mathrm{N}}^2-P_{\mathrm{d},i}^2}, & \Delta Q>0
 \end{cases}
 $$
 
-当 $\Delta Q>0$ 时，说明风电场当前无功输出不足，需要增加无功输出。此时第 $i$ 台 DFIG 的可调无功空间主要由其容量圆决定：
-
-$$
-A_{\mathrm{d},i}
-=
-
-\sqrt{S_{\mathrm{d},\mathrm{N}}^2-P_{\mathrm{d},i}^2}
-$$
-
-也就是说，当前有功越小、剩余视在功率容量越大的 DFIG，能够承担更多增加无功的任务。
-
-当 $\Delta Q<0$ 时，说明风电场当前无功输出偏多，需要减少无功输出。此时第 $i$ 台 DFIG 的可调空间与其原有无功输出 $Q_{\mathrm{d},i,0}$ 有关。原来输出无功较多的 DFIG，具有更大的向下调节空间，因此应承担更多减少无功的任务。
-
-因此，DFIG 无功一致性变量 $E_{\mathrm{d},i}=Q_{\mathrm{d},i}/A_{\mathrm{d},i}$ 的作用不是让各台 DFIG 平均输出无功，而是让各台 DFIG 按照自身可调无功能力进行比例分担。
-
-这与 ES 一致性变量有所不同。ES 的有功分配需要同时考虑功率输出和 SOC 状态，因此采用：
-
-$$
-E_{\mathrm{e},i}=K_1P_{\mathrm{e},i}+K_2S_{\mathrm{e},i}
-$$
-
-而 DFIG 无功分配没有 SOC 这类能量状态，主要受瞬时容量约束限制，因此采用：
-
-$$
-E_{\mathrm{d},i}=\frac{Q_{\mathrm{d},i}}{A_{\mathrm{d},i}}
-$$
-
-可以理解为，ES 一致性变量强调“功率分担 + 能量状态协调”，而 DFIG 无功一致性变量强调“按无功能力比例分担”。
-
-本小节可以总结为：
-
-$$
-\boxed{
-\text{风电场无功偏差由 DFIG 承担，且各 DFIG 按可调无功空间进行比例分配。}
-}
-$$
-
-$$
-\boxed{
-E_{\mathrm{d},i}=\frac{Q_{\mathrm{d},i}}{A_{\mathrm{d},i}}
-\text{ 表示第 }i\text{ 台 DFIG 的无功能力利用率。}
-}
-$$
-
-当所有 $E_{\mathrm{d},i}$ 达成一致时，各 DFIG 的无功能力利用率相同，从而避免简单平均分配导致部分机组过早达到无功容量边界。
+当 $\Delta Q>0$ 时，风电场无功不足，需要增加无功输出，$A_{\mathrm{d},i}$ 由剩余视在功率容量决定；当 $\Delta Q<0$ 时，风电场无功偏多，需要减少无功输出，$A_{\mathrm{d},i}$ 与原有无功输出 $Q_{\mathrm{d},i,0}$ 有关。这样可以避免简单平均分配导致部分 DFIG 过早触及无功容量边界。
 
 ---
 
 ## 13. 状态变量选取与 PI 积分状态的理解
 
-在阅读本文由 Fig. 2 和 Fig. 3 推导状态空间模型时，需要先明确一点：论文中的 $Q_{\mathrm{d},\mathrm{int},i}$ 和 $P_{\mathrm{e},\mathrm{int},i}$ 中的 $\mathrm{int}$ 不是 initial，而是 integral，表示 PI 控制器中的积分状态。
+阅读 Fig. 2 和 Fig. 3 的状态空间模型时，首先要明确：$Q_{\mathrm{d},\mathrm{int},i}$ 和 $P_{\mathrm{e},\mathrm{int},i}$ 中的 $\mathrm{int}$ 不是 initial，而是 integral，表示 PI 控制器的积分状态。
 
-也就是说：
+---
+
+### 13.1 $\mathrm{int}$ 下标表示积分状态
+
+本文中的两个积分状态为：
 
 $$
+\begin{cases}
+\displaystyle
 Q_{\mathrm{d},\mathrm{int},i}
 =
-
 \int
 \left(
 Q_{\mathrm{d},i}^{\mathrm{ref}}-Q_{\mathrm{d},i}
-\right)\,\mathrm{d}t\\
-
+\right)\,\mathrm{d}t,\\[8pt]
+\displaystyle
 P_{\mathrm{e},\mathrm{int},i}
 =
 \int
 \left(
 P_{\mathrm{e},i}^{\mathrm{ref}}-P_{\mathrm{e},i}
-\right)\,\mathrm{d}t
+\right)\,\mathrm{d}t.
+\end{cases}
 $$
 
-因此，这两个量不是初始值，而是控制器内部用于记录误差累计量的状态变量。它们本身在仿真或状态空间分析时当然也需要初始条件，例如 $Q_{\mathrm{d},\mathrm{int},i}(0)$ 和 $P_{\mathrm{e},\mathrm{int},i}(0)$，但其物理含义是“误差积分量”，而不是“初始值”。
+它们不是初始值，而是控制器内部的误差累计量。它们当然也有初始条件，例如 $Q_{\mathrm{d},\mathrm{int},i}(0)$ 和 $P_{\mathrm{e},\mathrm{int},i}(0)$，但物理含义是“积分状态”。
+
+PI 控制器需要把积分项作为状态变量，是因为：
+
+$$
+u_{\mathrm{c}}=k_{\mathrm{p}}e+k_{\mathrm{i}}z,
+\quad
+\dot z=e.
+$$
+
+仅知道当前误差 $e(t)$ 不能确定控制器输出，还必须知道历史误差累计量 $z$。因此，若要把闭环系统写成一阶状态空间形式，就必须把 PI 积分状态放进状态向量。
 
 ---
 
-### 13.1 为什么 PI 积分项需要作为状态变量
+### 13.2 状态变量选取规则
 
-比例控制器没有记忆，其输出只由当前误差决定：
+本文状态变量的选取遵循一个基本原则：凡是具有动态记忆、参与反馈控制或进入一致性变量的量，都应保留为状态。具体包括：
 
-$$
-u_{\mathrm{c}}=k_{\mathrm{p}}e
-$$
+1. 一阶动态环节的输出，例如功率反馈滤波、电流内环等效输出；
+2. 控制器内部动态，例如 PI 积分状态；
+3. 物理能量状态，例如 ES 的 SOC；
+4. 后续一致性控制或约束中显式使用的变量，例如 $Q_{\mathrm{d},i}$、$P_{\mathrm{e},i}$、$S_{\mathrm{e},i}$。
 
-但 PI 控制器含有积分项：
-
-$$
-u_{\mathrm{c}}=k_{\mathrm{p}}e+k_{\mathrm{i}}\int e(t)\,\mathrm{d}t
-$$
-
-此时，仅知道当前误差 $e(t)$ 并不能完全确定控制器输出，因为积分项还包含过去误差的累计效果。因此需要定义一个新的状态变量：
-
-$$
-z=\int e(t)\,\mathrm{d}t
-$$
-
-于是有：
-
-$$
-\dot z=e
-$$
-
-$$
-u_{\mathrm{c}}=k_{\mathrm{p}}e+k_{\mathrm{i}}z
-$$
-
-这说明 PI 控制器本身是一个动态系统。为了把整个闭环系统写成标准状态空间形式：
-
-$$
-\dot x=f(x,u)
-$$
-
-必须把 PI 的积分状态 $z$ 放入状态向量。否则模型会隐含依赖过去误差的历史，系统状态就不封闭。
-
-对应到本文中，DFIG 无功功率外环 PI 需要加入积分状态 $Q_{\mathrm{d},\mathrm{int},i}$，ES 有功功率外环 PI 需要加入积分状态 $P_{\mathrm{e},\mathrm{int},i}$。
+这样选取状态后，系统才能整理成一阶微分方程组，并进一步写成矩阵形式。
 
 ---
 
-### 13.2 本文单台 WT 状态变量的组成
+### 13.3 本文选取的状态变量
 
 本文把第 $i$ 台 WT 的状态变量选为：
 
@@ -934,22 +517,20 @@ P_{\mathrm{e},i}&
 P_{\mathrm{e},\mathrm{int},i}&
 i_{\mathrm{L},i}&
 S_{\mathrm{e},i}
-\end{bmatrix}^{\mathrm{T}}
+\end{bmatrix}^{\mathrm{T}}.
 $$
 
-这个状态向量可以分成两部分理解。
-
-DFIG 无功通道对应：
+其中前三个状态来自 DFIG 无功通道：
 
 $$
 \begin{bmatrix}
 Q_{\mathrm{d},i}&
 Q_{\mathrm{d},\mathrm{int},i}&
 i_{\mathrm{dr},i}
-\end{bmatrix}^{\mathrm{T}}
+\end{bmatrix}^{\mathrm{T}},
 $$
 
-ES 有功通道对应：
+后四个状态来自 ES 有功通道：
 
 $$
 \begin{bmatrix}
@@ -957,106 +538,44 @@ P_{\mathrm{e},i}&
 P_{\mathrm{e},\mathrm{int},i}&
 i_{\mathrm{L},i}&
 S_{\mathrm{e},i}
-\end{bmatrix}^{\mathrm{T}}
+\end{bmatrix}^{\mathrm{T}}.
 $$
 
-因此，本文状态变量的选取并不是随意列变量，而是把 Fig. 2 和 Fig. 3 中与通信一致性控制相关的动态环节都收进状态向量。
+这个选择是为后续把 Fig. 2、Fig. 3 的底层动态与上层一致性控制统一写成矩阵形式做准备。
 
 ---
 
-### 13.3 各状态变量的来源
+### 13.4 各状态变量的来源
 
-$Q_{\mathrm{d},i}$ 是 DFIG 无功功率反馈量，也是无功一致性变量的一部分：
+各状态变量与 Fig. 2、Fig. 3 的动态环节对应如下：
 
-$$
-E_{\mathrm{d},i}=\frac{Q_{\mathrm{d},i}}{A_{\mathrm{d},i}}
-$$
-
-同时，由于 Fig. 2 中存在功率反馈滤波环节，$Q_{\mathrm{d},i}$ 满足一阶动态关系：
-
-$$
-T_{\mathrm{fr}}\dot Q_{\mathrm{d},i}+Q_{\mathrm{d},i}=K_{\mathrm{Q}}i_{\mathrm{dr},i}
-$$
+| 状态变量 | 来源 | 典型动态关系 |
+|---|---|---|
+| $Q_{\mathrm{d},i}$ | DFIG 无功反馈滤波，也是 $E_{\mathrm{d},i}$ 的组成量 | $T_{\mathrm{fr}}\dot Q_{\mathrm{d},i}+Q_{\mathrm{d},i}=K_{\mathrm{Q}}i_{\mathrm{dr},i}$ |
+| $Q_{\mathrm{d},\mathrm{int},i}$ | DFIG 无功 PI 积分状态 | $\dot Q_{\mathrm{d},\mathrm{int},i}=Q_{\mathrm{d},i}^{\mathrm{ref}}-Q_{\mathrm{d},i}$ |
+| $i_{\mathrm{dr},i}$ | RSC 转子 d 轴电流内环状态 | $T_{\mathrm{ir}}\dot i_{\mathrm{dr},i}+i_{\mathrm{dr},i}=i_{\mathrm{dr},i}^{\mathrm{ref}}$ |
+| $P_{\mathrm{e},i}$ | ES 有功反馈滤波，也是 $E_{\mathrm{e},i}$ 的组成量 | $T_{\mathrm{fd}}\dot P_{\mathrm{e},i}+P_{\mathrm{e},i}=U_{\mathrm{e}}i_{\mathrm{L},i}$ |
+| $P_{\mathrm{e},\mathrm{int},i}$ | ES 有功 PI 积分状态 | $\dot P_{\mathrm{e},\mathrm{int},i}=P_{\mathrm{e},i}^{\mathrm{ref}}-P_{\mathrm{e},i}$ |
+| $i_{\mathrm{L},i}$ | DC/DC 电感电流内环状态 | $T_{\mathrm{id}}\dot i_{\mathrm{L},i}+i_{\mathrm{L},i}=i_{\mathrm{L},i}^{\mathrm{ref}}$ |
+| $S_{\mathrm{e},i}$ | ES 的 SOC 能量状态，也是 $E_{\mathrm{e},i}$ 的组成量 | $\dot S_{\mathrm{e},i}=-P_{\mathrm{e},i}$ |
 
 其中：
 
 $$
-K_{\mathrm{Q}}=\frac{3L_{\mathrm{m}}\omega_{\mathrm{s}}\psi_{\mathrm{s}}}{2L_{\mathrm{s}}}
+K_{\mathrm{Q}}=\frac{3L_{\mathrm{m}}\omega_{\mathrm{s}}\psi_{\mathrm{s}}}{2L_{\mathrm{s}}},
+\quad
+E_{\mathrm{d},i}=\frac{Q_{\mathrm{d},i}}{A_{\mathrm{d},i}},
+\quad
+E_{\mathrm{e},i}=K_1P_{\mathrm{e},i}+K_2S_{\mathrm{e},i}.
 $$
 
-所以 $Q_{\mathrm{d},i}$ 需要作为状态变量。
-
-$Q_{\mathrm{d},\mathrm{int},i}$ 是 DFIG 无功外环 PI 的积分状态，用来记录无功误差的累计量，因此必须进入状态向量。
-
-$i_{\mathrm{dr},i}$ 是 DFIG 转子 d 轴电流。Fig. 2 中转子电流内环被等效为一阶惯性环节：
-
-$$
-T_{\mathrm{ir}}\dot i_{\mathrm{dr},i}+i_{\mathrm{dr},i}=i_{\mathrm{dr},i}^{\mathrm{ref}}
-$$
-
-因此 $i_{\mathrm{dr},i}$ 也是动态状态。
-
-$P_{\mathrm{e},i}$ 是 ES 的有功功率反馈量，同时进入 ES 一致性变量：
-
-$$
-E_{\mathrm{e},i}=K_1P_{\mathrm{e},i}+K_2S_{\mathrm{e},i}
-$$
-
-Fig. 3 中 ES 功率反馈也包含一阶滤波动态：
-
-$$
-T_{\mathrm{fd}}\dot P_{\mathrm{e},i}+P_{\mathrm{e},i}=U_{\mathrm{e}}i_{\mathrm{L},i}
-$$
-
-因此 $P_{\mathrm{e},i}$ 需要作为状态变量。
-
-$P_{\mathrm{e},\mathrm{int},i}$ 是 ES 有功外环 PI 的积分状态，用来记录 ES 有功功率误差的累计量。
-
-$i_{\mathrm{L},i}$ 是 DC/DC 变换器电感电流。Fig. 3 中 DC/DC 电流内环被等效为：
-
-$$
-T_{\mathrm{id}}\dot i_{\mathrm{L},i}+i_{\mathrm{L},i}=i_{\mathrm{L},i}^{\mathrm{ref}}
-$$
-
-因此 $i_{\mathrm{L},i}$ 也需要进入状态向量。
-
-$S_{\mathrm{e},i}$ 是 ES 的 SOC，属于储能单元的能量状态。论文中采用简化形式表示其动态：
-
-$$
-\dot S_{\mathrm{e},i}=-P_{\mathrm{e},i}
-$$
-
-同时，$S_{\mathrm{e},i}$ 还直接进入 ES 一致性变量 $E_{\mathrm{e},i}$，因此必须作为状态变量。
-
----
-
-### 13.4 状态变量选取的一般规则
-
-从控制理论角度看，状态变量的选取一般遵循以下原则：
-
-1. 物理储能元件对应的变量通常需要作为状态，例如电感电流、电容电压、机械转速、SOC；
-2. 一阶或高阶动态环节的输出通常需要作为状态，例如低通滤波器输出、测量滤波输出、闭环电流环等效输出；
-3. 控制器内部动态需要作为状态，例如 PI 积分项、PLL 积分项、观测器状态；
-4. 后续控制律或约束中显式使用的变量通常需要保留在状态向量中；
-5. 状态变量应能使系统写成一阶微分方程组。
-
-本文中的状态向量正好符合这一规则：
-
-$$
-\text{功率反馈滤波输出}
-+
-\text{PI 积分状态}
-+
-\text{电流内环状态}
-+
-\text{SOC 能量状态}
-$$
+这些关系式正是附录 A 中构造 $A_i$、$B_i$ 以及后续一致性反馈矩阵 $C_{ij}$ 的来源。
 
 ---
 
 ### 13.5 为什么没有把 DFIG 有功环状态放进去
 
-如果只从 Fig. 2(b) 出发，DFIG 有功环也可以写成类似状态：
+如果只看 Fig. 2(b)，DFIG 有功环也可以写成类似状态：
 
 $$
 \begin{bmatrix}
@@ -1066,13 +585,13 @@ i_{\mathrm{qr},i}
 \end{bmatrix}^{\mathrm{T}}
 $$
 
-但本文后续通信一致性控制主要生成的是 $Q_{\mathrm{d},i}^{\mathrm{ref}}$ 和 $P_{\mathrm{e},i}^{\mathrm{ref}}$，而 DFIG 有功参考 $P_{\mathrm{d},i}^{\mathrm{ref}}$ 由 MPPT 决定：
+但本文用于通信拓扑优化的上层一致性控制主要生成 $Q_{\mathrm{d},i}^{\mathrm{ref}}$ 和 $P_{\mathrm{e},i}^{\mathrm{ref}}$。DFIG 有功参考由 MPPT 给出：
 
 $$
 P_{\mathrm{d},i}^{\mathrm{ref}}=P_{\mathrm{MPPT},i}
 $$
 
-因此，$P_{\mathrm{d},i}$ 更多由风速、MPPT 策略和外部环境决定，而不是通信网络直接分配的控制变量。
+因此，$P_{\mathrm{d},i}$ 更多由风速、MPPT 策略和外部环境决定，而不是通信网络直接分配的状态反馈对象。
 
 $P_{\mathrm{d},i}$ 在本文中并没有消失，它仍然影响 DFIG 的无功能力约束：
 
@@ -1087,31 +606,21 @@ $$
 $$
 P_{\mathrm{wf},\mathrm{e}}^{\mathrm{ref}}
 =
-
 P_{\mathrm{wf}}^{\mathrm{ref}}
-
 -\sum_{i=1}^{N}P_{\mathrm{d},i}
 $$
 
-但由于 $P_{\mathrm{d},i}^{\mathrm{ref}}$ 不由通信一致性控制生成，所以在用于通信拓扑优化的状态空间模型中，作者主要保留了 DFIG 无功通道和 ES 有功通道。
+但由于 $P_{\mathrm{d},i}^{\mathrm{ref}}$ 不由通信一致性控制生成，作者在用于通信拓扑优化的状态空间模型中主要保留 DFIG 无功通道和 ES 有功通道。
 
 ### 13.6 为什么可以写成式 (9) 的状态空间形式
 
-前面已经说明，本文选择的状态变量来自 DFIG 无功功率反馈滤波、无功 PI 积分状态、转子 d 轴电流内环，以及 ES 有功功率反馈滤波、有功 PI 积分状态、DC/DC 电感电流内环和 SOC 能量状态。接下来的问题是：为什么这些变量可以进一步整理成论文式 (9) 的形式：
+前面已经说明，本文保留的状态变量都来自一阶动态环节、PI 积分状态或 SOC 能量状态。因此，在选定 $x_i$ 后，单台 WT 的底层动态可以整理为论文式 (9) 的第一行：
 
 $$
-\begin{cases}
-\dot x_i=A_i x_i+B_i u_i \\
-
-u_i=-\sum_{j\in\vartheta_i}C_{ij}x_j
-\end{cases}
+\dot x_i=A_i x_i+B_i u_i.
 $$
 
-这里的关键在于，Fig. 2 和 Fig. 3 中保留下来的动态环节本质上都是一阶线性环节或 PI 控制器积分环节。
-
-功率反馈滤波、电流内环等效模型、PI 积分状态和 SOC 简化模型都可以写成“某个状态变量的导数等于当前状态变量和输入变量的线性组合”的形式。因此，在选定状态向量 $x_i$ 之后，每个状态变量的导数都可以由当前状态 $x_i$ 和外部输入 $u_i$ 表示。
-
-在本文中，$u_i$ 不是底层变流器电压指令，而是风电场级一致性控制生成的功率参考变化率：
+这里 $A_i$ 收集本机内部动态系数，例如功率滤波时间常数、电流内环时间常数、PI 参数、电流到功率的静态增益以及 SOC 方程；$B_i$ 描述上层参考输入如何进入底层功率环。论文将 $u_i$ 记为风电场级一致性控制生成的参考变化率：
 
 $$
 u_i=
@@ -1121,86 +630,56 @@ u_i=
 \end{bmatrix}
 $$
 
-也就是说，对于单台 WT 而言，底层 DFIG/ES 功率环可以看成一个线性动态系统，其输入是上层控制器给出的 $Q_{\mathrm{d},i}^{\mathrm{ref}}$ 和 $P_{\mathrm{e},i}^{\mathrm{ref}}$ 的变化率，其状态是 $Q_{\mathrm{d},i}$、$Q_{\mathrm{d},\mathrm{int},i}$、$i_{\mathrm{dr},i}$、$P_{\mathrm{e},i}$、$P_{\mathrm{e},\mathrm{int},i}$、$i_{\mathrm{L},i}$ 和 $S_{\mathrm{e},i}$。
-
-因此，单台 WT 的底层模型可以统一写为：
+第二行来自上层一致性控制。DFIG 无功分配和 ES 有功分配分别使用一致性变量：
 
 $$
-\dot x_i=A_i x_i+B_i u_i
+\begin{cases}
+\displaystyle
+E_{\mathrm{d},i}=\dfrac{Q_{\mathrm{d},i}}{A_{\mathrm{d},i}},\\[8pt]
+\displaystyle
+E_{\mathrm{e},i}=K_1P_{\mathrm{e},i}+K_2S_{\mathrm{e},i}.
+\end{cases}
 $$
 
-其中，$A_i$ 收集的是本机内部动态系数，例如功率滤波时间常数、电流内环时间常数、PI 参数以及电流到功率的静态增益；$B_i$ 则表示上层参考变化率对底层状态的作用方式。
-
-进一步地，本文采用一致性控制来生成 $u_i$。一致性控制的基本思想是：第 $i$ 个节点根据自身与邻居节点之间的一致性变量差异来调整自己的参考值。如果某个节点与邻居不一致，就通过调整参考输入使差异逐渐减小。
-
-对于 DFIG 无功分配，一致性变量是：
-
-$$
-E_{\mathrm{d},i}=\frac{Q_{\mathrm{d},i}}{A_{\mathrm{d},i}}
-$$
-
-对于 ES 有功分配，一致性变量是：
-
-$$
-E_{\mathrm{e},i}=K_1P_{\mathrm{e},i}+K_2S_{\mathrm{e},i}
-$$
-
-这两个一致性变量都是状态变量的线性组合。因此，基于邻居差异构造的控制律也可以写成状态变量的线性组合。
-
-例如，典型一致性项具有如下形式：
+在给定运行点或给定无功可调容量 $A_{\mathrm{d},i}$ 的情况下，这两个量都可以看成状态变量的线性组合。典型一致性控制项为：
 
 $$
 \sum_{j\in\vartheta_i}
 (E_j-E_i)
 $$
 
-由于 $E_i$ 和 $E_j$ 都可以由对应节点的状态变量线性表示，所以该项最终可以整理成关于 $x_i$ 和邻居状态 $x_j$ 的线性表达式。
-
-因此，上层输入 $u_i$ 可以写成：
+由于 $E_i$ 和 $E_j$ 可由对应节点状态表示，邻居差异项最终可以整理为状态反馈形式：
 
 $$
 u_i=-\sum_{j\in\vartheta_i}C_{ij}x_j
 $$
 
-其中，$C_{ij}$ 不是底层物理参数矩阵，而是由一致性控制律、通信邻接关系、无功可调空间 $A_{\mathrm{d},i}$、ES 权重 $K_1,K_2$ 以及 leader-follower 结构等共同决定的反馈矩阵。
+其中，$C_{ij}$ 不是底层物理参数矩阵，而是由一致性控制律、通信邻接关系、无功可调空间 $A_{\mathrm{d},i}$、ES 权重 $K_1,K_2$ 以及 leader-follower 结构共同决定的反馈矩阵。负号表示反馈方向是减小节点间一致性误差。
 
-这里的负号体现了一致性控制的基本方向：当节点之间存在差异时，控制输入应推动差异减小，而不是扩大差异。
-
-需要注意，式 (9) 并不是重新引入一个新的物理模型，而是把 Fig. 2、Fig. 3 中已经建立的底层线性动态模型和上层一致性控制律压缩到一个统一的状态空间表达式中。
-
-其中：
+因此，式 (9) 本质上是在一个表达式中连接两层模型：
 
 $$
-\dot x_i=A_i x_i+B_i u_i
+\begin{cases}
+\displaystyle
+\dot x_i=A_i x_i+B_i u_i,
+&
+\text{本机 DFIG/ES 底层动态},\\[6pt]
+\displaystyle
+u_i=-\sum_{j\in\vartheta_i}C_{ij}x_j,
+&
+\text{基于邻居信息的一致性反馈}.
+\end{cases}
 $$
 
-描述单台 WT/ES 的本地动态；
+在这个形式下，通信拓扑通过邻居集合 $\vartheta_i$ 和矩阵 $C_{ij}$ 进入控制系统。后续把所有 WT 的状态堆叠起来，就可以得到整个风电场的闭环矩阵，并分析通信拓扑对收敛速度、连通性和鲁棒性的影响。
 
-$$
-u_i=-\sum_{j\in\vartheta_i}C_{ij}x_j
-$$
-
-描述通信网络和一致性控制如何生成本地参考变化率。
-
-因此，式 (9) 的物理含义可以理解为：
-
-$$
-\boxed{
-\text{本机底层功率环动态}
-+
-\text{基于邻居信息的一致性控制输入}
-}
-$$
-
-在这个形式下，通信拓扑会通过邻居集合 $\vartheta_i$ 和矩阵 $C_{ij}$ 进入控制系统。后续将所有 WT 的状态堆叠起来后，就可以得到整个风电场的闭环系统矩阵，并进一步分析通信拓扑对收敛速度、连通性和鲁棒性的影响。
-
-从建模角度看，本文能够写成式 (9)，依赖于以下几个前提：
+从建模角度看，式 (9) 依赖以下近似：
 
 1. 底层功率环被近似为线性一阶动态；
 2. PI 控制器的积分项被显式加入状态变量；
 3. 电流到功率的映射在当前工作点附近被视为线性关系；
 4. 常值项和运行点偏置可以通过工作点平移或小信号建模吸收；
-5. 一致性变量 $E_{\mathrm{d},i}$ 和 $E_{\mathrm{e},i}$ 是状态变量的线性组合；
+5. 一致性变量 $E_{\mathrm{d},i}$ 和 $E_{\mathrm{e},i}$ 可在给定工况下视为状态变量的线性组合；
 6. 通信一致性控制律由邻居状态差构成，因此可以整理为状态反馈形式。
 
 所以，式 (9) 可以看作是把“设备底层控制动态”和“风电场级分布式一致性控制”连接起来的中间模型。后续通信网络优化之所以能够转化为闭环矩阵和图论问题，正是因为该式把通信邻接关系转化成了状态反馈矩阵的一部分。
@@ -1215,7 +694,7 @@ $$
 
 #### 13.7.1 为什么 $A_i$ 是块对角矩阵
 
-附录 A 中首先给出：
+附录 A 中：
 
 $$
 A_i=
@@ -1225,7 +704,7 @@ A_{i,1}&0\\
 \end{bmatrix}
 $$
 
-其中，$A_{i,1}$ 对应 DFIG 无功通道：
+其中，$A_{i,1}$ 对应 DFIG 无功通道，状态顺序为：
 
 $$
 \begin{bmatrix}
@@ -1235,7 +714,7 @@ i_{\mathrm{dr},i}
 \end{bmatrix}^{\mathrm{T}}
 $$
 
-$A_{i,2}$ 对应 ES 有功通道：
+$A_{i,2}$ 对应 ES 有功通道，状态顺序为：
 
 $$
 \begin{bmatrix}
@@ -1246,203 +725,131 @@ S_{\mathrm{e},i}
 \end{bmatrix}^{\mathrm{T}}
 $$
 
-矩阵采用块对角形式，说明作者在单台 WT 的底层动态建模中，把 DFIG 无功通道和 ES 有功通道视为两个相对独立的线性子系统。两者之间的协调关系不放在本机内部矩阵 $A_i$ 中，而是通过上层一致性控制输入 $u_i$ 体现。
+块对角结构表示：单台 WT 的底层模型中，DFIG 无功通道和 ES 有功通道被视为两个相对独立的线性子系统；二者的协调关系不放在 $A_i$ 中，而是通过上层一致性输入 $u_i$ 体现。
 
 ---
 
 #### 13.7.2 $A_{i,1}$ 的来源：DFIG 无功通道
 
-附录 A 中的 DFIG 无功通道矩阵为：
+令：
+
+$$
+K_{\mathrm{Q}}
+=
+\frac{3L_{\mathrm{m}}\psi_{\mathrm{s}}\omega_{\mathrm{s}}}{2L_{\mathrm{s}}}
+$$
+
+DFIG 无功通道的三个状态为 $Q_{\mathrm{d},i}$、$Q_{\mathrm{d},\mathrm{int},i}$、$i_{\mathrm{dr},i}$。对应动态为：
+
+$$
+\begin{cases}
+\displaystyle
+\dot Q_{\mathrm{d},i}
+=
+-\dfrac{1}{T_{\mathrm{fr}}}Q_{\mathrm{d},i}
++
+\dfrac{K_{\mathrm{Q}}}{T_{\mathrm{fr}}}i_{\mathrm{dr},i},\\[8pt]
+\displaystyle
+\dot Q_{\mathrm{d},\mathrm{int},i}
+=
+Q_{\mathrm{d},i}^{\mathrm{ref}}
+-
+Q_{\mathrm{d},i},\\[8pt]
+\displaystyle
+\dot i_{\mathrm{dr},i}
+=
+-\dfrac{k_{\mathrm{r},\mathrm{p}}^{\mathrm{q}}}{T_{\mathrm{ir}}}Q_{\mathrm{d},i}
++
+\dfrac{k_{\mathrm{r},\mathrm{i}}^{\mathrm{q}}}{T_{\mathrm{ir}}}Q_{\mathrm{d},\mathrm{int},i}
+-
+\dfrac{1}{T_{\mathrm{ir}}}i_{\mathrm{dr},i}
++
+\dfrac{k_{\mathrm{r},\mathrm{p}}^{\mathrm{q}}}{T_{\mathrm{ir}}}Q_{\mathrm{d},i}^{\mathrm{ref}}.
+\end{cases}
+$$
+
+第一行来自无功功率反馈滤波；第二行来自无功 PI 积分状态；第三行来自“无功 PI 输出 $i_{\mathrm{dr},i}^{\mathrm{ref}}$ + 转子 d 轴电流内环”：
+
+$$
+i_{\mathrm{dr},i}^{\mathrm{ref}}
+=
+k_{\mathrm{r},\mathrm{p}}^{\mathrm{q}}
+\left(
+Q_{\mathrm{d},i}^{\mathrm{ref}}-Q_{\mathrm{d},i}
+\right)
++
+k_{\mathrm{r},\mathrm{i}}^{\mathrm{q}}Q_{\mathrm{d},\mathrm{int},i},
+\quad
+T_{\mathrm{ir}}\dot i_{\mathrm{dr},i}+i_{\mathrm{dr},i}=i_{\mathrm{dr},i}^{\mathrm{ref}}.
+$$
+
+把状态项收集到 $A_{i,1}$，把参考输入 $Q_{\mathrm{d},i}^{\mathrm{ref}}$ 收集到 $B_i$，即可得到：
 
 $$
 A_{i,1}
 =
 \begin{bmatrix}
--\frac{1}{T_{\mathrm{fr}}} & 0 & \frac{3L_{\mathrm{m}}\psi_{\mathrm{s}}\omega_{\mathrm{s}}}{2L_{\mathrm{s}}T_{\mathrm{fr}}}\\
+-\frac{1}{T_{\mathrm{fr}}} & 0 & \frac{K_{\mathrm{Q}}}{T_{\mathrm{fr}}}\\
 -1 & 0 & 0\\
 -\frac{k_{\mathrm{r},\mathrm{p}}^{\mathrm{q}}}{T_{\mathrm{ir}}} & \frac{k_{\mathrm{r},\mathrm{i}}^{\mathrm{q}}}{T_{\mathrm{ir}}} & -\frac{1}{T_{\mathrm{ir}}}
 \end{bmatrix}
 $$
 
-它的每一行都可以直接对应 Fig. 2(a) 中的一个动态关系。
-
-第一行来自无功功率反馈滤波环节。DFIG 转子 d 轴电流 $i_{\mathrm{dr},i}$ 经过电流到无功的静态增益后，再经过功率测量滤波得到 $Q_{\mathrm{d},i}$，因此有：
-
-$$
-\dot Q_{\mathrm{d},i}
-=
--\frac{1}{T_{\mathrm{fr}}}Q_{\mathrm{d},i}
-+
-\frac{3L_{\mathrm{m}}\psi_{\mathrm{s}}\omega_{\mathrm{s}}}{2L_{\mathrm{s}}T_{\mathrm{fr}}}i_{\mathrm{dr},i}
-$$
-
-所以 $A_{i,1}$ 第一行对应：
-
-$$
-\begin{bmatrix}
--\frac{1}{T_{\mathrm{fr}}}&
-0&
-\frac{3L_{\mathrm{m}}\psi_{\mathrm{s}}\omega_{\mathrm{s}}}{2L_{\mathrm{s}}T_{\mathrm{fr}}}
-\end{bmatrix}
-$$
-
-第二行来自无功 PI 的积分状态。$Q_{\mathrm{d},\mathrm{int},i}$ 表示无功误差的积分量。若按 Fig. 2(a) 的传统 PI 控制框图理解，有：
-
-$$
-Q_{\mathrm{d},\mathrm{int},i}
-=
-\int
-\left(
-Q_{\mathrm{d},i}^{\mathrm{ref}}-Q_{\mathrm{d},i}
-\right)\,\mathrm{d}t
-$$
-
-因此：
-
-$$
-\dot Q_{\mathrm{d},\mathrm{int},i}
-=
-Q_{\mathrm{d},i}^{\mathrm{ref}}
--
-Q_{\mathrm{d},i}
-$$
-
-也就是说，$\dot Q_{\mathrm{d},\mathrm{int},i}$ 由两部分组成：一部分是状态项 $-Q_{\mathrm{d},i}$，另一部分是参考输入项 $Q_{\mathrm{d},i}^{\mathrm{ref}}$。
-
-因此，在 $A_{i,1}$ 中，第二行只保留状态项：
-
-$$
-\begin{bmatrix}
--1&0&0
-\end{bmatrix}
-$$
-
-而参考输入项 $Q_{\mathrm{d},i}^{\mathrm{ref}}$ 不进入 $A_{i,1}$，而是通过输入矩阵 $B_i$ 体现。由于该输入对 $\dot Q_{\mathrm{d},\mathrm{int},i}$ 的系数为 $1$，所以 $B_i$ 第一列第二行的元素为 $1$。
-
-换言之，完整方程应理解为：
-
-$$
-\dot Q_{\mathrm{d},\mathrm{int},i}
-=
-\underbrace{
-\begin{bmatrix}
--1&0&0
-\end{bmatrix}
-\begin{bmatrix}
-Q_{\mathrm{d},i}\\
-Q_{\mathrm{d},\mathrm{int},i}\\
-i_{\mathrm{dr},i}
-\end{bmatrix}
-}_{A_{i,1}\text{ 中的状态项}}
-+
-\underbrace{1\cdot Q_{\mathrm{d},i}^{\mathrm{ref}}}_{B_i\text{ 中的输入项}}
-$$
-
-所以 $A_{i,1}$ 第二行写成 $\begin{bmatrix}-1&0&0\end{bmatrix}$，并不表示完整积分方程中只有 $-Q_{\mathrm{d},i}$，而是表示参考输入项已经被分离到 $B_i u_i$ 中。
-
-第三行来自转子 d 轴电流内环的一阶等效。Fig. 2(a) 中，无功外环 PI 的输出是转子 d 轴电流参考 $i_{\mathrm{dr},i}^{\mathrm{ref}}$，电流内环则使实际转子 d 轴电流 $i_{\mathrm{dr},i}$ 跟踪该参考值。电流内环被简化为一阶惯性环节：
-
-$$
-T_{\mathrm{ir}}\dot i_{\mathrm{dr},i}+i_{\mathrm{dr},i}=i_{\mathrm{dr},i}^{\mathrm{ref}}
-$$
-
-无功外环 PI 的输出可以写成：
-
-$$
-i_{\mathrm{dr},i}^{\mathrm{ref}}
-=
-
-k_{\mathrm{r},\mathrm{p}}^{\mathrm{q}}
-\left(
-Q_{\mathrm{d},i}^{\mathrm{ref}}-Q_{\mathrm{d},i}
-\right)
-+
-k_{\mathrm{r},\mathrm{i}}^{\mathrm{q}}Q_{\mathrm{d},\mathrm{int},i}
-$$
-
-将 PI 输出代入电流内环方程，可得：
-
-$$
-T_{\mathrm{ir}}\dot i_{\mathrm{dr},i}+i_{\mathrm{dr},i}
-=
-
-k_{\mathrm{r},\mathrm{p}}^{\mathrm{q}}
-\left(
-Q_{\mathrm{d},i}^{\mathrm{ref}}-Q_{\mathrm{d},i}
-\right)
-+
-k_{\mathrm{r},\mathrm{i}}^{\mathrm{q}}Q_{\mathrm{d},\mathrm{int},i}
-$$
-
-整理为：
-
-$$
-\dot i_{\mathrm{dr},i}
-=
--\frac{k_{\mathrm{r},\mathrm{p}}^{\mathrm{q}}}{T_{\mathrm{ir}}}Q_{\mathrm{d},i}
-+
-\frac{k_{\mathrm{r},\mathrm{i}}^{\mathrm{q}}}{T_{\mathrm{ir}}}Q_{\mathrm{d},\mathrm{int},i}
--
-\frac{1}{T_{\mathrm{ir}}}i_{\mathrm{dr},i}
-+
-\frac{k_{\mathrm{r},\mathrm{p}}^{\mathrm{q}}}{T_{\mathrm{ir}}}Q_{\mathrm{d},i}^{\mathrm{ref}}
-$$
-
-因此，$\dot i_{\mathrm{dr},i}$ 中与状态变量 $Q_{\mathrm{d},i}$、$Q_{\mathrm{d},\mathrm{int},i}$ 和 $i_{\mathrm{dr},i}$ 相关的部分分别为：
-
-$$
--\frac{k_{\mathrm{r},\mathrm{p}}^{\mathrm{q}}}{T_{\mathrm{ir}}}Q_{\mathrm{d},i}
-$$
-
-$$
-\frac{k_{\mathrm{r},\mathrm{i}}^{\mathrm{q}}}{T_{\mathrm{ir}}}Q_{\mathrm{d},\mathrm{int},i}
-$$
-
-$$
--\frac{1}{T_{\mathrm{ir}}}i_{\mathrm{dr},i}
-$$
-
-所以在 $A_{i,1}$ 中，第三行对应：
-
-$$
-\begin{bmatrix}
--\frac{k_{\mathrm{r},\mathrm{p}}^{\mathrm{q}}}{T_{\mathrm{ir}}}&
-\frac{k_{\mathrm{r},\mathrm{i}}^{\mathrm{q}}}{T_{\mathrm{ir}}}&
--\frac{1}{T_{\mathrm{ir}}}
-\end{bmatrix}
-$$
-
-而参考输入项：
-
-$$
-\frac{k_{\mathrm{r},\mathrm{p}}^{\mathrm{q}}}{T_{\mathrm{ir}}}Q_{\mathrm{d},i}^{\mathrm{ref}}
-$$
-
-不属于 $A_{i,1}$，而是进入输入矩阵 $B_i$。因此，$B_i$ 第一列第三行的系数为：
-
-$$
-\frac{k_{\mathrm{r},\mathrm{p}}^{\mathrm{q}}}{T_{\mathrm{ir}}}
-$$
-
-换言之，$A_{i,1}$ 第三行表示本机状态对 $\dot i_{\mathrm{dr},i}$ 的影响，$B_i$ 第三行则表示无功参考输入通过 PI 比例环节对 $\dot i_{\mathrm{dr},i}$ 的影响。
-
-因此，$A_{i,1}$ 可以理解为：
-
-$$
-\boxed{
-\text{DFIG 无功功率滤波}
-+
-\text{无功 PI 积分状态}
-+
-\text{转子 d 轴电流内环}
-}
-$$
+这三行分别对应无功功率滤波、无功 PI 积分状态和转子 d 轴电流内环。
 
 ---
 
 #### 13.7.3 $A_{i,2}$ 的来源：ES 有功通道
 
-附录 A 中的 ES 有功通道矩阵为：
+ES 有功通道的四个状态为 $P_{\mathrm{e},i}$、$P_{\mathrm{e},\mathrm{int},i}$、$i_{\mathrm{L},i}$、$S_{\mathrm{e},i}$。对应动态为：
+
+$$
+\begin{cases}
+\displaystyle
+\dot P_{\mathrm{e},i}
+=
+-\dfrac{1}{T_{\mathrm{fd}}}P_{\mathrm{e},i}
++
+\dfrac{U_{\mathrm{e}}}{T_{\mathrm{fd}}}i_{\mathrm{L},i},\\[8pt]
+\displaystyle
+\dot P_{\mathrm{e},\mathrm{int},i}
+=
+P_{\mathrm{e},i}^{\mathrm{ref}}
+-
+P_{\mathrm{e},i},\\[8pt]
+\displaystyle
+\dot i_{\mathrm{L},i}
+=
+-\dfrac{k_{\mathrm{d},\mathrm{p}}^{\mathrm{p}}}{T_{\mathrm{id}}}P_{\mathrm{e},i}
++
+\dfrac{k_{\mathrm{d},\mathrm{i}}^{\mathrm{p}}}{T_{\mathrm{id}}}P_{\mathrm{e},\mathrm{int},i}
+-
+\dfrac{1}{T_{\mathrm{id}}}i_{\mathrm{L},i}
++
+\dfrac{k_{\mathrm{d},\mathrm{p}}^{\mathrm{p}}}{T_{\mathrm{id}}}P_{\mathrm{e},i}^{\mathrm{ref}},\\[8pt]
+\displaystyle
+\dot S_{\mathrm{e},i}=-P_{\mathrm{e},i}.
+\end{cases}
+$$
+
+第一行来自 ES 功率反馈滤波，$U_{\mathrm{e}}$ 是当前充/放电工况下的等效端电压；第二行来自 ES 有功 PI 积分状态；第三行来自“有功 PI 输出 $i_{\mathrm{L},i}^{\mathrm{ref}}$ + DC/DC 电流内环”：
+
+$$
+i_{\mathrm{L},i}^{\mathrm{ref}}
+=
+k_{\mathrm{d},\mathrm{p}}^{\mathrm{p}}
+\left(
+P_{\mathrm{e},i}^{\mathrm{ref}}-P_{\mathrm{e},i}
+\right)
++
+k_{\mathrm{d},\mathrm{i}}^{\mathrm{p}}P_{\mathrm{e},\mathrm{int},i},
+\quad
+T_{\mathrm{id}}\dot i_{\mathrm{L},i}+i_{\mathrm{L},i}=i_{\mathrm{L},i}^{\mathrm{ref}}.
+$$
+
+第四行是归一化 SOC 动态。若保留额定能量容量 $E_{\mathrm{N}}$，更一般地可写为 $\dot S_{\mathrm{e},i}=-P_{\mathrm{e},i}/E_{\mathrm{N}}$；本文将容量基值吸收到标幺化中，因此得到 $\dot S_{\mathrm{e},i}=-P_{\mathrm{e},i}$。当 $P_{\mathrm{e},i}>0$ 时 ES 放电，SOC 下降；当 $P_{\mathrm{e},i}<0$ 时 ES 充电，SOC 上升。
+
+收集状态项得到：
 
 $$
 A_{i,2}
@@ -1455,282 +862,13 @@ A_{i,2}
 \end{bmatrix}
 $$
 
-它对应 Fig. 3 中 ES 的有功功率控制环。按照状态变量顺序：
-
-$$
-x_{e,i}
-=
-\begin{bmatrix}
-P_{\mathrm{e},i}\\
-P_{\mathrm{e},\mathrm{int},i}\\
-i_{\mathrm{L},i}\\
-S_{\mathrm{e},i}
-\end{bmatrix}
-$$
-
-其中，$P_{\mathrm{e},i}$ 是 ES 的实际有功功率，$P_{\mathrm{e},\mathrm{int},i}$ 是 ES 有功功率 PI 的误差积分项，$i_{\mathrm{L},i}$ 是 DC/DC 变换器电感电流，$S_{\mathrm{e},i}$ 是 ES 的 SOC。
-
-第一行来自 ES 功率反馈滤波环节。Fig. 3 中，DC/DC 电感电流 $i_{\mathrm{L},i}$ 与 ES 端电压 $U_{\mathrm{e}}$ 相乘后得到 ES 功率，再经过功率反馈滤波得到反馈功率 $P_{\mathrm{e},i}$。因此可以写成：
-
-$$
-T_{\mathrm{fd}}\dot P_{\mathrm{e},i}+P_{\mathrm{e},i}=U_{\mathrm{e}} i_{\mathrm{L},i}
-$$
-
-整理得到：
-
-$$
-\dot P_{\mathrm{e},i}
-=
--\frac{1}{T_{\mathrm{fd}}}P_{\mathrm{e},i}
-+
-\frac{U_{\mathrm{e}}}{T_{\mathrm{fd}}}i_{\mathrm{L},i}
-$$
-
-所以，在状态向量
-
-$$
-\begin{bmatrix}
-P_{\mathrm{e},i}&
-P_{\mathrm{e},\mathrm{int},i}&
-i_{\mathrm{L},i}&
-S_{\mathrm{e},i}
-\end{bmatrix}^{\mathrm{T}}
-$$
-
-的顺序下，第一行对应：
-
-$$
-\begin{bmatrix}
--\frac{1}{T_{\mathrm{fd}}}&
-0&
-\frac{U_{\mathrm{e}}}{T_{\mathrm{fd}}}&
-0
-\end{bmatrix}
-$$
-
-这里的 $U_{\mathrm{e}}$ 可以理解为 ES 在当前充电或放电状态下的等效端电压。Fig. 3 中将充电和放电分别写成 $U_{\mathrm{e}}^{\mathrm{ch}}$ 和 $U_{\mathrm{e}}^{\mathrm{dis}}$，而在状态空间表达中，作者用统一的 $U_{\mathrm{e}}$ 表示对应工况下的电压系数。
-
-第二行来自 ES 有功功率 PI 的积分状态。$P_{\mathrm{e},\mathrm{int},i}$ 表示 ES 有功功率误差的积分量。若按 Fig. 3 的传统 PI 控制框图理解，有：
-
-$$
-P_{\mathrm{e},\mathrm{int},i}
-=
-\int
-\left(
-P_{\mathrm{e},i}^{\mathrm{ref}}-P_{\mathrm{e},i}
-\right)\,\mathrm{d}t
-$$
-
-因此：
-
-$$
-\dot P_{\mathrm{e},\mathrm{int},i}
-=
-P_{\mathrm{e},i}^{\mathrm{ref}}
--P_{\mathrm{e},i}
-$$
-
-也就是说，$\dot P_{\mathrm{e},\mathrm{int},i}$ 由两部分组成：一部分是状态项 $-P_{\mathrm{e},i}$，另一部分是参考输入项 $P_{\mathrm{e},i}^{\mathrm{ref}}$。
-
-因此，在 $A_{i,2}$ 中，第二行只保留状态项：
-
-$$
-\begin{bmatrix}
--1&0&0&0
-\end{bmatrix}
-$$
-
-而参考输入项 $P_{\mathrm{e},i}^{\mathrm{ref}}$ 不进入 $A_{i,2}$，而是通过输入矩阵 $B_i$ 体现。由于该输入对 $\dot P_{\mathrm{e},\mathrm{int},i}$ 的系数为 $1$，所以 $B_i$ 第二列第五行的元素为 $1$。
-
-换言之，完整方程应理解为：
-
-$$
-\dot P_{\mathrm{e},\mathrm{int},i}
-=
-\underbrace{
-\begin{bmatrix}
--1&0&0&0
-\end{bmatrix}
-\begin{bmatrix}
-P_{\mathrm{e},i}\\
-P_{\mathrm{e},\mathrm{int},i}\\
-i_{\mathrm{L},i}\\
-S_{\mathrm{e},i}
-\end{bmatrix}
-}_{A_{i}\text{ 中的状态项}}
-+
-\underbrace{1\cdot P_{\mathrm{e},i}^{\mathrm{ref}}}_{B_{i}\text{ 中的输入项}}
-$$
-
-所以 $A_{i,2}$ 第二行写成 $\begin{bmatrix}-1&0&0&0\end{bmatrix}$，并不表示完整积分方程中只有 $-P_{\mathrm{e},i}$，而是表示参考输入项已经被分离到 $B_i u_i$ 中。
-
-第三行来自 DC/DC 电感电流内环的一阶等效。Fig. 3 中，ES 有功外环 PI 的输出是 DC/DC 电感电流参考 $i_{\mathrm{L},i}^{\mathrm{ref}}$，电流内环则使实际电感电流 $i_{\mathrm{L},i}$ 跟踪该参考值。电流内环被简化为一阶惯性环节：
-
-$$
-T_{\mathrm{id}}\dot i_{\mathrm{L},i}+i_{\mathrm{L},i}=i_{\mathrm{L},i}^{\mathrm{ref}}
-$$
-
-ES 有功外环 PI 的输出可以写成：
-
-$$
-i_{\mathrm{L},i}^{\mathrm{ref}}
-=
-k_{\mathrm{d},\mathrm{p}}^{\mathrm{p}}
-\left(
-P_{\mathrm{e},i}^{\mathrm{ref}}-P_{\mathrm{e},i}
-\right)
-+
-k_{\mathrm{d},\mathrm{i}}^{\mathrm{p}}P_{\mathrm{e},\mathrm{int},i}
-$$
-
-将 PI 输出代入电流内环方程，可得：
-
-$$
-T_{\mathrm{id}}\dot i_{\mathrm{L},i}+i_{\mathrm{L},i}
-=
-k_{\mathrm{d},\mathrm{p}}^{\mathrm{p}}
-\left(
-P_{\mathrm{e},i}^{\mathrm{ref}}-P_{\mathrm{e},i}
-\right)
-+
-k_{\mathrm{d},\mathrm{i}}^{\mathrm{p}}P_{\mathrm{e},\mathrm{int},i}
-$$
-
-整理为：
-
-$$
-\dot i_{\mathrm{L},i}
-=
-
--\frac{k_{\mathrm{d},\mathrm{p}}^{\mathrm{p}}}{T_{\mathrm{id}}}P_{\mathrm{e},i}
-+
-\frac{k_{\mathrm{d},\mathrm{i}}^{\mathrm{p}}}{T_{\mathrm{id}}}P_{\mathrm{e},\mathrm{int},i}
--
-
-\frac{1}{T_{\mathrm{id}}}i_{\mathrm{L},i}
-+
-\frac{k_{\mathrm{d},\mathrm{p}}^{\mathrm{p}}}{T_{\mathrm{id}}}P_{\mathrm{e},i}^{\mathrm{ref}}
-$$
-
-因此，$\dot i_{\mathrm{L},i}$ 中与状态变量 $P_{\mathrm{e},i}$、$P_{\mathrm{e},\mathrm{int},i}$ 和 $i_{\mathrm{L},i}$ 相关的部分分别为：
-
-$$
--\frac{k_{\mathrm{d},\mathrm{p}}^{\mathrm{p}}}{T_{\mathrm{id}}}P_{\mathrm{e},i}
-$$
-
-$$
-\frac{k_{\mathrm{d},\mathrm{i}}^{\mathrm{p}}}{T_{\mathrm{id}}}P_{\mathrm{e},\mathrm{int},i}
-$$
-
-$$
--\frac{1}{T_{\mathrm{id}}}i_{\mathrm{L},i}
-$$
-
-所以在 $A_{i,2}$ 中，第三行对应：
-
-$$
-\begin{bmatrix}
--\frac{k_{\mathrm{d},\mathrm{p}}^{\mathrm{p}}}{T_{\mathrm{id}}}&
-\frac{k_{\mathrm{d},\mathrm{i}}^{\mathrm{p}}}{T_{\mathrm{id}}}&
--\frac{1}{T_{\mathrm{id}}}&
-0
-\end{bmatrix}
-$$
-
-而参考输入项：
-
-$$
-\frac{k_{\mathrm{d},\mathrm{p}}^{\mathrm{p}}}{T_{\mathrm{id}}}P_{\mathrm{e},i}^{\mathrm{ref}}
-$$
-
-不属于 $A_{i,2}$，而是进入输入矩阵 $B_i$。因此，$B_i$ 第二列第六行的系数为：
-
-$$
-\frac{k_{\mathrm{d},\mathrm{p}}^{\mathrm{p}}}{T_{\mathrm{id}}}
-$$
-
-换言之，$A_{i,2}$ 第三行表示本机状态对 $\dot i_{\mathrm{L},i}$ 的影响，$B_i$ 第六行则表示 ES 有功参考输入通过 PI 比例环节对 $\dot i_{\mathrm{L},i}$ 的影响。
-
-第四行来自 SOC 动态。SOC 表示 ES 当前剩余能量占额定容量的比例。若令 $E_{\mathrm{N}}$ 表示 ES 的额定能量容量，并约定 $P_{\mathrm{e},i}>0$ 表示放电，则较一般的 SOC 动态可以写成：
-
-$$
-\dot S_{\mathrm{e},i}
-=
--\frac{P_{\mathrm{e},i}}{E_{\mathrm{N}}}
-$$
-
-如果进一步考虑充放电效率，则可根据充电和放电工况分别加入效率系数。但本文主要关注风电场级分布式控制和通信拓扑优化，而不是电池内部精细建模，因此采用归一化形式，将容量基值吸收到功率标幺化中，写成：
-
-$$
-\dot S_{\mathrm{e},i}=-P_{\mathrm{e},i}
-$$
-
-这个式子的物理含义是：
-
-* 当 $P_{\mathrm{e},i}>0$ 时，ES 放电，SOC 下降；
-* 当 $P_{\mathrm{e},i}<0$ 时，ES 充电，SOC 上升。
-
-由于 $\dot S_{\mathrm{e},i}$ 只与 $P_{\mathrm{e},i}$ 有关，因此在状态向量顺序
-
-$$
-\begin{bmatrix}
-P_{\mathrm{e},i}&
-P_{\mathrm{e},\mathrm{int},i}&
-i_{\mathrm{L},i}&
-S_{\mathrm{e},i}
-\end{bmatrix}^{\mathrm{T}}
-$$
-
-下，第四行对应：
-
-$$
-\begin{bmatrix}
--1&0&0&0
-\end{bmatrix}
-$$
-
-也就是说，$A_{i,2}$ 第四行表示：
-
-$$
-\dot S_{\mathrm{e},i}
-=
-\begin{bmatrix}
--1&0&0&0
-\end{bmatrix}
-\begin{bmatrix}
-P_{\mathrm{e},i}\\
-P_{\mathrm{e},\mathrm{int},i}\\
-i_{\mathrm{L},i}\\
-S_{\mathrm{e},i}
-\end{bmatrix}
-=-P_{\mathrm{e},i}
-$$
-
-这里没有对应的参考输入项，因此 $B_i$ 中 SOC 所在行的元素为 $0$。这也说明 SOC 不是底层功率环直接控制的快速变量，而是由 ES 实际充放电功率逐渐累积形成的慢状态。
-
-因此，$A_{i,2}$ 可以整体理解为：
-
-$$
-\boxed{
-\text{ES 有功功率反馈滤波}
-+
-\text{ES 有功 PI 积分状态}
-+
-\text{DC/DC 电感电流内环}
-+
-\text{SOC 能量状态}
-}
-$$
-
-其中，前三行描述 ES 有功功率控制环的快速动态，第四行描述 ES 能量状态随充放电功率变化的慢动态。
+这四行分别对应 ES 有功功率滤波、ES 有功 PI 积分状态、DC/DC 电感电流内环和 SOC 能量状态。
 
 ---
 
 #### 13.7.4 $B_i$ 的来源：参考指令输入
 
-附录 A 中的 $B_i$ 是一个 $7\times 2$ 矩阵，用于描述上层功率参考输入如何注入到底层 DFIG 无功控制环和 ES 有功控制环中。
-
-按照 7 维状态变量的顺序，$B_i$ 可以写成：
+参考输入项没有放进 $A_{i,1}$ 或 $A_{i,2}$，而是统一放进 $B_i$。按 7 维状态顺序，附录 A 给出：
 
 $$
 B_i=
@@ -1745,97 +883,17 @@ B_i=
 \end{bmatrix}
 $$
 
-第一列对应 DFIG 无功参考输入对无功通道的作用。若按 Fig. 2(a) 的传统 PI 控制框图理解，无功误差积分状态满足：
-
-$$
-\dot Q_{\mathrm{d},\mathrm{int},i}
-=
-Q_{\mathrm{d},i}^{\mathrm{ref}}
--Q_{\mathrm{d},i}
-$$
-
-因此参考输入在第二行的系数为 $1$。同时，无功参考输入还会通过 PI 比例环节影响转子 d 轴电流参考 $i_{\mathrm{dr},i}^{\mathrm{ref}}$，再经过电流内环一阶等效作用于 $i_{\mathrm{dr},i}$，因此在第三行的系数为：
-
-$$
-\frac{k_{\mathrm{r},\mathrm{p}}^{\mathrm{q}}}{T_{\mathrm{ir}}}
-$$
-
-所以 $B_i$ 第一列为：
-
-$$
-\begin{bmatrix}
-0\\
-1\\
-\frac{k_{\mathrm{r},\mathrm{p}}^{\mathrm{q}}}{T_{\mathrm{ir}}}\\
-0\\
-0\\
-0\\
-0
-\end{bmatrix}
-$$
-
-第二列对应 ES 有功参考输入对 ES 有功通道的作用。同理，ES 有功误差积分状态满足：
-
-$$
-\dot P_{\mathrm{e},\mathrm{int},i}
-=
-P_{\mathrm{e},i}^{\mathrm{ref}}
--P_{\mathrm{e},i}
-$$
-
-因此参考输入在第五行的系数为 $1$。同时，有功参考输入通过 PI 比例环节影响 DC/DC 电感电流参考 $i_{\mathrm{L},i}^{\mathrm{ref}}$，再经过电流内环一阶等效作用于 $i_{\mathrm{L},i}$，因此在第六行的系数为：
-
-$$
-\frac{k_{\mathrm{d},\mathrm{p}}^{\mathrm{p}}}{T_{\mathrm{id}}}
-$$
-
-所以 $B_i$ 第二列为：
-
-$$
-\begin{bmatrix}
-0\\
-0\\
-0\\
-0\\
-1\\
-\frac{k_{\mathrm{d},\mathrm{p}}^{\mathrm{p}}}{T_{\mathrm{id}}}\\
-0
-\end{bmatrix}
-$$
-
-因此，$B_i$ 的作用可以概括为：
-
-$$
-\boxed{
-\text{将上层无功参考输入注入 DFIG 无功 PI 的积分项和比例项}
-}
-$$
-
-$$
-\boxed{
-\text{将上层有功参考输入注入 ES 有功 PI 的积分项和比例项}
-}
-$$
-
-需要注意，论文式 (9) 和附录中将输入记为参考值变化率 $\dot Q_{\mathrm{d},i}^{\mathrm{ref}}$、$\dot P_{\mathrm{e},i}^{\mathrm{ref}}$，而从 Fig. 2、Fig. 3 的 PI 框图及 $B_i$ 的结构来看，其作用形式更接近参考值 $Q_{\mathrm{d},i}^{\mathrm{ref}}$、$P_{\mathrm{e},i}^{\mathrm{ref}}$ 进入误差环节。因此，这里可以理解为作者为了衔接一致性控制律与状态空间模型而进行的记号压缩；阅读时应区分底层 PI 框图中的参考输入与上层一致性控制中生成的参考变化率。
+第一列对应 DFIG 无功参考：它进入 $\dot Q_{\mathrm{d},\mathrm{int},i}$ 的系数为 $1$，并通过 PI 比例环节进入 $\dot i_{\mathrm{dr},i}$，系数为 $k_{\mathrm{r},\mathrm{p}}^{\mathrm{q}}/T_{\mathrm{ir}}$。第二列对应 ES 有功参考：它进入 $\dot P_{\mathrm{e},\mathrm{int},i}$ 的系数为 $1$，并通过 PI 比例环节进入 $\dot i_{\mathrm{L},i}$，系数为 $k_{\mathrm{d},\mathrm{p}}^{\mathrm{p}}/T_{\mathrm{id}}$。功率滤波状态和 SOC 行没有直接参考输入，所以对应元素为 $0$。
 
 ---
 
 #### 13.7.5 $C_{ij}$ 的来源：一致性控制律
 
-附录 A 中的 $C_{ij}$ 并不是单台设备的底层物理参数矩阵，而是由多智能体一致性控制律整理得到的通信反馈矩阵。它描述第 $i$ 台 WT 如何根据自身状态、邻居状态以及全局功率偏差来调整自身的功率参考输入。
-
-根据论文的 leader-follower 一致性控制思想，第 $i$ 台机组的上层输入可以理解为由两类信息构成：
-
-1. 邻居间的一致性变量差异，用于实现 DFIG/ES 之间的分布式功率协调；
-2. leader 节点接收的全局功率偏差，用于实现风电场总有功/无功指令跟踪。
-
-其典型形式可以写成：
+附录 A 中的 $C_{ij}$ 不是设备物理参数，而是由一致性控制律整理得到的通信反馈矩阵。第 $i$ 台机组的上层输入由两类信息构成：邻居间一致性变量差异，以及 leader 节点接收的全局功率偏差。典型形式为：
 
 $$
 \dot Q_{\mathrm{d},i}^{\mathrm{ref}}
 =
-
 -c_1
 \sum_{j\in\vartheta_i}
 \left(
@@ -1857,72 +915,64 @@ E_{\mathrm{e},i}-E_{\mathrm{e},j}
 c_0^{\mathrm{P}}M_{i0}\Delta P
 $$
 
-其中，$\vartheta_i$ 是第 $i$ 台 WT 的通信邻居集合，$M_{i0}=1$ 表示该节点为 leader，否则为 $0$。
-
-DFIG 无功一致性变量为：
+其中，$\vartheta_i$ 是第 $i$ 台 WT 的通信邻居集合，$M_{i0}=1$ 表示该节点为 leader，否则为 $0$。一致性变量为：
 
 $$
-E_{\mathrm{d},i}
-=
-\frac{Q_{\mathrm{d},i}}{A_{\mathrm{d},i}}
+\begin{cases}
+\displaystyle
+E_{\mathrm{d},i}=\dfrac{Q_{\mathrm{d},i}}{A_{\mathrm{d},i}},\\[8pt]
+\displaystyle
+E_{\mathrm{e},i}=K_1P_{\mathrm{e},i}+K_2S_{\mathrm{e},i}.
+\end{cases}
 $$
 
-ES 有功一致性变量为：
+由于 $Q_{\mathrm{d},i}$、$P_{\mathrm{e},i}$ 和 $S_{\mathrm{e},i}$ 分别是状态向量 $x_i$ 的第 1、第 4 和第 7 个元素，因此一致性变量差可展开为：
 
 $$
-E_{\mathrm{e},i}
-=
-K_1P_{\mathrm{e},i}+K_2S_{\mathrm{e},i}
-$$
-
-由于 $Q_{\mathrm{d},i}$、$P_{\mathrm{e},i}$ 和 $S_{\mathrm{e},i}$ 分别是状态向量 $x_i$ 的第 1、第 4 和第 7 个元素，因此一致性变量差可以直接展开成状态变量的线性组合：
-
-$$
+\begin{cases}
+\displaystyle
 E_{\mathrm{d},i}-E_{\mathrm{d},j}
 =
 \frac{1}{A_{\mathrm{d},i}}Q_{\mathrm{d},i}
--\frac{1}{A_{\mathrm{d},j}}Q_{\mathrm{d},j}
-$$
-
-$$
+-\frac{1}{A_{\mathrm{d},j}}Q_{\mathrm{d},j},
+\\[8pt]
+\displaystyle
 E_{\mathrm{e},i}-E_{\mathrm{e},j}
 =
 K_1(P_{\mathrm{e},i}-P_{\mathrm{e},j})
 +
 K_2(S_{\mathrm{e},i}-S_{\mathrm{e},j})
+\end{cases}
 $$
 
-全局无功偏差为：
+全局偏差为：
 
 $$
+\begin{cases}
+\displaystyle
 \Delta Q
 =
 Q_{\mathrm{wf}}^{\mathrm{ref}}
--\sum_{k=1}^{N}Q_{\mathrm{d},k}
-$$
-
-全局有功偏差为：
-
-$$
+-
+\sum_{k=1}^{N}Q_{\mathrm{d},k},\\[8pt]
+\displaystyle
 \Delta P
 =
-
 P_{\mathrm{wf}}^{\mathrm{ref}}
-
 -\sum_{k=1}^{N}
 \left(
 P_{\mathrm{d},k}+P_{\mathrm{e},k}
 \right)
+\end{cases}
 $$
 
-这里需要注意，$P_{\mathrm{d},k}$ 是 DFIG 在 MPPT 作用下的有功输出，它不是本文通信一致性控制直接调节的状态变量，但会作为外部运行点或扰动项进入风电场有功平衡。
+其中，$P_{\mathrm{d},k}$ 是 DFIG 在 MPPT 作用下的有功输出，不是本文通信一致性控制直接调节的状态变量；在偏差变量建模中，它可作为外部运行点或扰动项处理。
 
 将上述变量展开后，无功参考输入可以写为：
 
 $$
 \dot Q_{\mathrm{d},i}^{\mathrm{ref}}
 =
-
 -c_1
 \sum_{j\in\vartheta_i}
 \left(
@@ -1931,7 +981,6 @@ $$
 \frac{1}{A_{\mathrm{d},j}}Q_{\mathrm{d},j}
 \right)
 -
-
 c_0^{\mathrm{Q}}M_{i0}
 \sum_{k=1}^{N}Q_{\mathrm{d},k}
 +
@@ -1958,14 +1007,11 @@ c_0^{\mathrm{P}}M_{i0}
 \left(
 P_{\mathrm{wf}}^{\mathrm{ref}}
 -
-
 \sum_{k=1}^{N}P_{\mathrm{d},k}
 \right)
 $$
 
-从上述展开式可以看出，$\dot Q_{\mathrm{d},i}^{\mathrm{ref}}$ 与状态变量 $Q_{\mathrm{d}}$ 线性相关，$\dot P_{\mathrm{e},i}^{\mathrm{ref}}$ 与状态变量 $P_{\mathrm{e}}$ 和 $S_{\mathrm{e}}$ 线性相关。因此，当把全场所有 WT 的状态堆叠后，输入 $u$ 可以写成关于状态 $x$ 的线性或仿射表达式。
-
-若忽略外部调度指令和 MPPT 有功项，或在某一工作点附近进行偏差变量建模，则常值项可以被吸收到平衡点中，此时可以写成紧凑形式：
+由此可见，$\dot Q_{\mathrm{d},i}^{\mathrm{ref}}$ 与全场 $Q_{\mathrm{d}}$ 线性相关，$\dot P_{\mathrm{e},i}^{\mathrm{ref}}$ 与全场 $P_{\mathrm{e}}$、$S_{\mathrm{e}}$ 线性相关。若忽略外部调度指令和 MPPT 有功项，或在工作点附近写成偏差变量，常值项可吸收到平衡点中，于是全场输入可写成：
 
 $$
 u=Cx
@@ -1979,39 +1025,17 @@ $$
 =(A-BC)x
 $$
 
-因此，$C$ 或 $C_{ij}$ 的主要作用是从全场状态中提取 $Q_{\mathrm{d}}$、$P_{\mathrm{e}}$ 和 $S_{\mathrm{e}}$ 这些参与一致性控制的状态，并按照通信拓扑、控制增益和 leader-follower 结构进行加权组合。
+所以，$C$ 或 $C_{ij}$ 的作用是从全场状态中提取 $Q_{\mathrm{d}}$、$P_{\mathrm{e}}$、$S_{\mathrm{e}}$，并按通信拓扑、控制增益、$A_{\mathrm{d},i}$、$K_1,K_2$、leader 标记以及全局偏差反馈进行加权组合。它的本质是通信拓扑和一致性协议形成的状态反馈映射，也是后文写出 $C=\mathcal{H}(M_{\mathrm{c}})$、进而分析 $A_{\mathrm{cl}}=A-BC$ 的关键。
 
-从矩阵结构上看，$C_{ij}$ 在与 $Q_{\mathrm{d}}$、$P_{\mathrm{e}}$ 和 $S_{\mathrm{e}}$ 对应的列上具有非零元素，而在 PI 积分状态、电流内环状态等列上通常为零。这说明一致性控制直接使用的是无功输出、ES 有功功率和 SOC，而不是底层电流状态或 PI 积分状态。
-
-因此，$C_{ij}$ 可以理解为：
-
-$$
-\boxed{
-\text{通信邻居相对状态差所形成的拉普拉斯型反馈}
-+
-\text{leader 节点对全局功率偏差的跟踪反馈}
-}
-$$
-
-它把以下因素统一吸收到矩阵表达中：
-
-1. 一致性控制增益 $c_1$ 和 $c_2$；
-2. DFIG 无功可调空间 $A_{\mathrm{d},i}$；
-3. ES 功率/SOC 权重 $K_1$ 和 $K_2$；
-4. 通信邻居集合 $\vartheta_i$ 或通信拉普拉斯矩阵 $L_{\mathrm{c}}$；
-5. leader 标记 $M_{i0}$；
-6. 全局偏差反馈增益 $c_0^{\mathrm{Q}}$ 和 $c_0^{\mathrm{P}}$。
-
-因此，$C_{ij}$ 的本质不是设备物理模型，而是通信拓扑和一致性协议共同形成的状态反馈映射。它也是后续论文能够写出 $C=\mathcal{H}(M_{\mathrm{c}})$，并进一步研究通信网络拓扑如何影响闭环矩阵 $A_{\mathrm{cl}}=A-BC$ 的关键。
+---
 
 #### 13.7.6 当前理解小结
 
-附录 A 中的矩阵可以按如下方式理解：
+附录 A 的矩阵可以按如下方式理解：
 
 $$
 A_i
 =
-
 \begin{bmatrix}
 A_{i,1}&0\\
 0&A_{i,2}
@@ -2020,486 +1044,263 @@ $$
 
 其中，$A_{i,1}$ 来自 DFIG 无功功率环，$A_{i,2}$ 来自 ES 有功功率环。
 
-$$
-B_i
-$$
-描述上层输入：
+$B_i$ 描述上层参考输入 $\dot Q_{\mathrm{d},i}^{\mathrm{ref}}$、$\dot P_{\mathrm{e},i}^{\mathrm{ref}}$ 如何通过 PI 积分项和比例项注入本机状态；$C_{ij}$ 来自一致性控制律，描述第 $i$ 个节点如何根据邻居状态和全局功率偏差调整自身参考变化率。
 
-$$
-\dot Q_{\mathrm{d},i}^{\mathrm{ref}},\quad \dot P_{\mathrm{e},i}^{\mathrm{ref}}
-$$
-
-如何通过 PI 控制器和电流内环作用到本机状态。
-
-$$
-C_{ij}
-$$
-
-则来自一致性控制律，描述第 $i$ 个节点如何根据邻居节点 $j$ 的状态来调整自身参考变化率。
-
-因此，附录 A 的矩阵并不是凭空给出的，而是由以下三部分逐步整理得到：
-
-$$
-\boxed{
-\text{Fig. 2 的 DFIG 无功功率环}
-}
-$$
-
-$$
-\boxed{
-\text{Fig. 3 的 ES 有功功率环}
-}
-$$
-
-$$
-\boxed{
-\text{基于 }E_{\mathrm{d},i}\text{ 和 }E_{\mathrm{e},i}\text{ 的一致性控制律}
-}
-$$
-
-其作用是把单台 WT 的底层功率控制和上层分布式一致性控制统一写成状态空间形式，为后续整个风电场闭环矩阵 $A_{\mathrm{cl}}=A-BC$ 的构造做准备。
+因此，附录 A 不是凭空给出矩阵，而是把 Fig. 2 的 DFIG 无功环、Fig. 3 的 ES 有功环，以及基于 $E_{\mathrm{d},i}$ 和 $E_{\mathrm{e},i}$ 的一致性控制律统一整理成状态空间形式，为后续全场闭环矩阵 $A_{\mathrm{cl}}=A-BC$ 做准备。
 
 ### 13.8 当前理解小结
 
-本文状态变量的选取可以概括为：
+本节的核心可以概括为一条建模链条：
 
 $$
-\boxed{
-\text{凡是具有动态记忆、参与反馈控制或进入一致性变量的量，都需要作为状态}
-}
+\text{状态变量选取}
+\rightarrow
+\text{单台 WT 矩阵 }A_i,B_i
+\rightarrow
+\text{一致性反馈 }C_{ij}
+\rightarrow
+\text{全场闭环模型}.
 $$
 
-其中，$Q_{\mathrm{d},\mathrm{int},i}$ 和 $P_{\mathrm{e},\mathrm{int},i}$ 是 PI 控制器的积分状态，不是初始值。它们之所以需要被记录，是因为 PI 控制器的输出不仅取决于当前误差，还取决于过去误差的累计量。
+状态变量的选取原则是：凡是具有动态记忆、参与反馈控制或进入一致性变量的量，都需要作为状态。因此，$Q_{\mathrm{d},\mathrm{int},i}$ 和 $P_{\mathrm{e},\mathrm{int},i}$ 作为 PI 积分状态必须进入 $x_i$；它们不是初始值，而是误差累计量。
 
-因此，本文单台 WT 的状态空间模型本质上是由以下部分组合而成：
+单台 WT 的底层动态由两部分组成：DFIG 无功通道和 ES 有功通道。前者包含 $Q_{\mathrm{d},i}$、$Q_{\mathrm{d},\mathrm{int},i}$、$i_{\mathrm{dr},i}$；后者包含 $P_{\mathrm{e},i}$、$P_{\mathrm{e},\mathrm{int},i}$、$i_{\mathrm{L},i}$、$S_{\mathrm{e},i}$。附录 A 中的 $A_i$ 和 $B_i$ 就是按这个状态顺序，把 Fig. 2、Fig. 3 的一阶环节、PI 积分状态和参考输入项整理出来。
 
-$$
-\boxed{
-\text{DFIG 无功功率反馈滤波}
-+
-\text{DFIG 无功 PI 积分状态}
-+
-\text{DFIG 转子 d 轴电流内环}
-}
-$$
+上层一致性控制律则通过 $E_{\mathrm{d},i}$ 和 $E_{\mathrm{e},i}$ 生成参考变化率，并进一步整理成 $C_{ij}$。后续把所有 WT 的状态堆叠后，通信拓扑就通过 $C=\mathcal{H}(M_{\mathrm{c}})$ 进入全场闭环矩阵 $A_{\mathrm{cl}}=A-BC$。这也是后续能够讨论通信拓扑、闭环收敛速度和优化指标之间关系的基础。
+
+## 14. 图论基础：本文真正用到的几个量
+
+本文的图论部分只需要抓住通信网络的矩阵表达。通信图记为：
 
 $$
-\boxed{
-\text{ES 有功功率反馈滤波}
-+
-\text{ES 有功 PI 积分状态}
-+
-\text{DC/DC 电感电流内环}
-+
-\text{SOC 能量状态}
-}
+G_{\mathrm{c}}=(V_{\mathrm{c}},E_{\mathrm{c}})
 $$
 
-后续将所有 WT 的状态堆叠后，再通过一致性控制律把输入写成状态的线性组合，就可以得到整个风电场的闭环状态空间模型。
-
-## 14. 图论基础：邻接矩阵、度矩阵、拉普拉斯矩阵与代数连通度
-
-本文在 Section III-A 中首先给出了通信网络优化所需的图论基础。这里的图不是电气拓扑图，而是风电场中各 WT/ES 控制代理之间的通信网络图。
-
-论文将通信网络表示为一个无向图：
-
-$$
-G=(V,E)
-$$
-
-其中，$V={v_1,v_2,\cdots,v_N}$ 是节点集合，每个节点可以理解为一台 WT/ES 控制代理；$E$ 是边集合，表示两个节点之间存在通信关系。
-
-由于本文默认通信关系是双向的，即若节点 $i$ 能与节点 $j$ 通信，则节点 $j$ 也能与节点 $i$ 通信，因此该通信网络可以建模为无向图。
+其中每个节点对应一台 WT/ES 控制代理，边表示两个代理之间存在通信链路。本文默认通信图是无向、无权、无自环图。
 
 ---
 
-### 14.1 邻接矩阵
+### 14.1 邻接矩阵、度矩阵和拉普拉斯矩阵
 
-邻接矩阵记为：
-
-$$
-M=[M_{ij}]\in\mathbb{R}^{N\times N}
-$$
-
-其元素定义为：
+通信邻接矩阵记为 $M_{\mathrm{c}}=[M_{\mathrm{c},ij}]$。对本文的无向无权图，有：
 
 $$
-M_{ij}=
+M_{\mathrm{c},ij}
+=
 \begin{cases}
-1, & v_i\text{ 与 }v_j\text{ 相连}\\
-0, & v_i\text{ 与 }v_j\text{ 不相连}
-\end{cases}
+1, & i\text{ 与 }j\text{ 之间有通信边}\\
+0, & i\text{ 与 }j\text{ 之间无通信边}
+\end{cases},
+\quad
+M_{\mathrm{c}}=M_{\mathrm{c}}^{\mathrm{T}},
+\quad
+M_{\mathrm{c},ii}=0.
 $$
 
-由于本文采用无向通信图，因此有：
+度矩阵 $\Lambda_{\mathrm{c}}$ 是对角矩阵，其对角元素为节点度数：
 
 $$
-M_{ij}=M_{ji}
-$$
-
-也就是邻接矩阵 $M$ 是对称矩阵。
-
-需要注意，$M_{ij}$ 只有 $0$ 和 $1$，主要是因为本文使用的是无权图，而不是因为无向图本身必然只能取 $0$ 和 $1$。如果是加权无向图，邻接矩阵也可以取正权值；如果是有向图，邻接矩阵也可以是 $0$ 和 $1$，但一般不再对称。
-
----
-
-### 14.2 度矩阵
-
-节点 $v_i$ 的度表示与该节点直接相连的边数，也就是该节点的通信邻居数量。
-
-对于无权图，第 $i$ 个节点的度可以写为：
-
-$$
-\Lambda_{ii}=\sum_{j=1}^{N}M_{ij}
-$$
-
-所有节点的度组成一个对角矩阵：
-
-$$
-\Lambda=
-\mathrm{diag}
+\Lambda_{\mathrm{c},ii}
+=
+\sum_{j=1}^{N}
+M_{\mathrm{c},ij},
+\quad
+\Lambda_{\mathrm{c}}
+=
+\operatorname{diag}
 \left(
-\Lambda_{11},
-\Lambda_{22},
+\Lambda_{\mathrm{c},11},
 \cdots,
-\Lambda_{NN}
+\Lambda_{\mathrm{c},NN}
+\right).
+$$
+
+通信拉普拉斯矩阵定义为：
+
+$$
+L_{\mathrm{c}}
+=
+\Lambda_{\mathrm{c}}-M_{\mathrm{c}}.
+$$
+
+也就是说，$M_{\mathrm{c}}$ 记录“谁和谁通信”，$\Lambda_{\mathrm{c}}$ 记录“每个节点有多少邻居”，$L_{\mathrm{c}}$ 则把通信拓扑转化为适合一致性控制分析的矩阵。
+
+---
+
+### 14.2 拉普拉斯矩阵的两个关键性质
+
+对无向图，$M_{\mathrm{c}}=M_{\mathrm{c}}^{\mathrm{T}}$，而 $\Lambda_{\mathrm{c}}$ 是实对角矩阵，所以：
+
+$$
+L_{\mathrm{c}}^{\mathrm{T}}
+=
+\left(
+\Lambda_{\mathrm{c}}-M_{\mathrm{c}}
+\right)^{\mathrm{T}}
+=
+\Lambda_{\mathrm{c}}-M_{\mathrm{c}}
+=
+L_{\mathrm{c}}.
+$$
+
+因此 $L_{\mathrm{c}}$ 是实对称矩阵。半正定性可以由二次型看出。对任意 $x=[x_1,\cdots,x_N]^{\mathrm{T}}$，有：
+
+$$
+\begin{aligned}
+x^{\mathrm{T}}L_{\mathrm{c}}x
+&=
+x^{\mathrm{T}}
+\left(
+\Lambda_{\mathrm{c}}-M_{\mathrm{c}}
 \right)
+x\\
+&=
+\sum_{i=1}^{N}
+\Lambda_{\mathrm{c},ii}x_i^2
+-
+\sum_{i=1}^{N}
+\sum_{j=1}^{N}
+M_{\mathrm{c},ij}x_ix_j.
+\end{aligned}
 $$
 
-该矩阵称为度矩阵。
-
----
-
-### 14.3 图拉普拉斯矩阵
-
-图拉普拉斯矩阵定义为：
+由于 $\Lambda_{\mathrm{c},ii}=\sum_{j=1}^{N}M_{\mathrm{c},ij}$，且 $M_{\mathrm{c}}$ 对称，上式可整理为：
 
 $$
-L=\Lambda-M
-$$
-
-其中，$\Lambda$ 是度矩阵，$M$ 是邻接矩阵。
-
-因此，$L$ 的元素具有如下结构：
-
-$$
-L_{ij}=
-\begin{cases}
-\Lambda_{ii}, & i=j\\
--1, & i\neq j\text{ 且 }v_i\text{ 与 }v_j\text{ 相连}\\
-0, & i\neq j\text{ 且 }v_i\text{ 与 }v_j\text{ 不相连}
-\end{cases}
-$$
-
-例如，对于 3 个节点的链式图：
-
-$$
-1-2-3
-$$
-
-邻接矩阵为：
-
-$$
-M=
-\begin{bmatrix}
-0&1&0\\
-1&0&1\\
-0&1&0
-\end{bmatrix}
-$$
-
-度矩阵为：
-
-$$
-\Lambda=
-\begin{bmatrix}
-1&0&0\\
-0&2&0\\
-0&0&1
-\end{bmatrix}
-$$
-
-因此拉普拉斯矩阵为：
-
-$$
-L=\Lambda-M
+x^{\mathrm{T}}L_{\mathrm{c}}x
 =
-
-\begin{bmatrix}
-1&-1&0\\
--1&2&-1\\
-0&-1&1
-\end{bmatrix}
-$$
-
----
-
-### 14.4 拉普拉斯矩阵是实对称半正定矩阵
-
-对于本文中的无向无权通信图，拉普拉斯矩阵 $L$ 是实对称半正定矩阵。
-
-首先，由于邻接矩阵 $M$ 是实矩阵，度矩阵 $\Lambda$ 也是实矩阵，因此：
-
-$$
-L=\Lambda-M
-$$
-
-也是实矩阵。
-
-其次，由于无向图满足：
-
-$$
-M=M^{\mathrm{T}}
-$$
-
-而度矩阵 $\Lambda$ 是实对角矩阵，天然满足：
-
-$$
-\Lambda=\Lambda^{\mathrm{T}}
-$$
-
-因此：
-
-$$
-L^{\mathrm{T}}
-=
-
-(\Lambda-M)^{\mathrm{T}}
-
-=\Lambda^{\mathrm{T}}-M^{\mathrm{T}}
-
-=\Lambda-M
-
-=L
-$$
-
-所以 $L$ 是实对称矩阵。
-
-接下来证明 $L$ 半正定。对任意向量：
-
-$$
-x=
-\begin{bmatrix}
-x_1&x_2&\cdots&x_N
-\end{bmatrix}^{\mathrm{T}}
-$$
-
-有：
-
-$$
-x^{\mathrm{T}}Lx=x^{\mathrm{T}}(\Lambda-M)x
-$$
-
-即：
-
-$$
-x^{\mathrm{T}}Lx
-=
-
-\sum_{i=1}^{N}\Lambda_{ii}x_i^2
-
--\sum_{i=1}^{N}\sum_{j=1}^{N}M_{ij}x_ix_j
-$$
-
-由于：
-
-$$
-\Lambda_{ii}=\sum_{j=1}^{N}M_{ij}
-$$
-
-所以：
-
-$$
-\sum_{i=1}^{N}\Lambda_{ii}x_i^2
-=
-
-\sum_{i=1}^{N}\sum_{j=1}^{N}M_{ij}x_i^2
-$$
-
-进一步可以得到：
-
-$$
-x^{\mathrm{T}}Lx
-=
-
 \frac{1}{2}
 \sum_{i=1}^{N}
 \sum_{j=1}^{N}
-M_{ij}(x_i-x_j)^2
+M_{\mathrm{c},ij}
+\left(
+x_i-x_j
+\right)^2
+\geq 0.
 $$
 
-由于 $M_{ij}\geq 0$，且 $(x_i-x_j)^2\geq 0$，因此：
+所以 $L_{\mathrm{c}}$ 是半正定矩阵。这个式子也给出直观含义：拉普拉斯二次型惩罚相邻节点之间的差异。若两个相连节点状态差越大，则该项贡献越大。
+
+另一个关键性质是：
 
 $$
-x^{\mathrm{T}}Lx\geq 0
+L_{\mathrm{c}}1_N=0.
 $$
 
-对任意 $x$ 都成立，所以 $L$ 是半正定矩阵。
-
-因此，对于无向图的拉普拉斯矩阵，有：
+这是因为 $L_{\mathrm{c}}$ 的每一行元素之和为零：
 
 $$
-L=L^{\mathrm{T}}
+\Lambda_{\mathrm{c},ii}
+-
+\sum_{j=1}^{N}
+M_{\mathrm{c},ij}
+=
+0.
 $$
 
-且：
-
-$$
-x^{\mathrm{T}}Lx\geq 0,\quad \forall x
-$$
-
-所以 $L$ 是实对称半正定矩阵。
+因此，$0$ 总是 $L_{\mathrm{c}}$ 的一个特征值，特征向量为全 1 向量 $1_N$。在一致性控制中，$1_N$ 方向对应所有节点状态相同的“一致状态”，所以这个零特征值不是异常，而是拉普拉斯矩阵固有的结构。
 
 ---
 
-### 14.5 为什么拉普拉斯矩阵一定有一个零特征值
+### 14.3 代数连通度 $\lambda_2(L_{\mathrm{c}})$
 
-图拉普拉斯矩阵还有一个重要性质：
-
-$$
-L\mathbf{1}=0
-$$
-
-其中：
+由于 $L_{\mathrm{c}}$ 是实对称半正定矩阵，其特征值可以排列为：
 
 $$
-\mathbf{1}=
-\begin{bmatrix}
-1&1&\cdots&1
-\end{bmatrix}^{\mathrm{T}}
+0
+=
+\lambda_1
+\left(
+L_{\mathrm{c}}
+\right)
+\leq
+\lambda_2
+\left(
+L_{\mathrm{c}}
+\right)
+\leq
+\cdots
+\leq
+\lambda_N
+\left(
+L_{\mathrm{c}}
+\right).
 $$
 
-这是因为 $L$ 的每一行元素之和都为零。具体来说，拉普拉斯矩阵第 $i$ 行的对角元素是节点 $i$ 的度，而非对角元素中与邻居相连的位置为 $-1$，因此该行求和为：
+第二小特征值 $\lambda_2(L_{\mathrm{c}})$ 称为代数连通度，也称 Fiedler 值。它最重要的判据是：
 
 $$
-\Lambda_{ii}-\sum_{j=1}^{N}M_{ij}=0
-$$
-
-所以：
-
-$$
-L\mathbf{1}=0
-$$
-
-这说明 $0$ 一定是 $L$ 的一个特征值，对应的特征向量是全 1 向量 $\mathbf{1}$。
-
-从一致性控制角度看，$\mathbf{1}$ 方向对应所有节点状态完全相同的情况：
-
-$$
-x_1=x_2=\cdots=x_N
-$$
-
-这正是系统已经达成一致的状态。
-
----
-
-### 14.6 代数连通度与 Fiedler 值
-
-由于无向图的拉普拉斯矩阵 $L$ 是实对称半正定矩阵，因此它的特征值均为实数，且可以按从小到大排列为：
-
-$$
-0=\lambda_1(L)\leq \lambda_2(L)\leq \cdots \leq \lambda_N(L)
-$$
-
-其中，最小特征值 $\lambda_1(L)$ 总是 $0$。真正用于衡量图是否连通的是第二小特征值：
-
-$$
-\lambda_2(L)
-$$
-
-该值称为图的代数连通度，也常称为 Fiedler 值。
-
-其基本性质是：
-
-$$
-\lambda_2(L)>0
-$$
-
-当且仅当图 $G$ 是连通图。
-
-如果图不连通，则至少可以分成两个互不通信的连通分量，此时拉普拉斯矩阵会有多个零特征值，因此：
-
-$$
-\lambda_2(L)=0
-$$
-
-更一般地说，如果图有 $k$ 个连通分量，那么拉普拉斯矩阵 $L$ 的零特征值重数就是 $k$。
-
-因此，Fiedler 值不仅可以判断图是否连通，还可以在一定程度上反映网络的连通强度。
-
----
-
-### 14.7 代数连通度的直观理解
-
-如果一个通信图虽然连通，但只有一条关键边连接两个大区域，那么信息从一个区域传播到另一个区域时会受到限制。这种图的 Fiedler 值通常较小。
-
-如果一个通信图有更多冗余连接和交叉连接，节点之间的信息扩散路径更多，则 Fiedler 值通常较大。
-
-因此可以粗略理解为：
-
-$$
-\lambda_2(L)\text{ 越大，通信网络越“紧密”}
-$$
-
-在一致性控制中，典型动态可以写成：
-
-$$
-\dot x=-Lx
-$$
-
-该系统最终会收敛到一致状态。由于 $\lambda_1(L)=0$ 对应最终一致方向，不代表误差衰减；真正影响最慢一致性误差衰减速度的是：
-
-$$
-\lambda_2(L)
-$$
-
-所以在许多一致性控制问题中，$\lambda_2(L)$ 越大，信息扩散越快，一致性收敛速度也通常越快。
-
----
-
-### 14.8 当前理解小结
-
-这一小节的图论基础可以总结为：
-
-$$
-\boxed{
-M\text{ 描述节点之间是否直接通信}
-}
-$$
-
-$$
-\boxed{
-\Lambda\text{ 描述每个节点有多少通信邻居}
-}
-$$
-
-$$
-\boxed{
-L=\Lambda-M\text{ 把通信拓扑转化为适合一致性分析的矩阵}
-}
-$$
-
-$$
-\boxed{
-\lambda_2(L)\text{ 是 Fiedler 值，也就是代数连通度}
-}
-$$
-
-其中，$L$ 是实对称半正定矩阵，且一定满足：
-
-$$
-L\mathbf{1}=0
-$$
-
-因此 $0$ 总是 $L$ 的一个特征值。第二小特征值 $\lambda_2(L)$ 用于判断图是否连通：
-
-$$
-\lambda_2(L)>0
+\lambda_2
+\left(
+L_{\mathrm{c}}
+\right)
+>
+0
 \Longleftrightarrow
-G\text{ 连通}
+G_{\mathrm{c}}\text{ 连通}.
 $$
 
-在本文中，$\lambda_2(L_{\mathrm{c}})>0$ 是通信网络可用于全局一致性控制的基本前提。
+这个判据可以从上一节的二次型理解。若：
+
+$$
+x^{\mathrm{T}}L_{\mathrm{c}}x=0,
+$$
+
+则必须对每一条通信边都有：
+
+$$
+x_i=x_j.
+$$
+
+如果通信图连通，那么任意两个节点之间都可以通过一条路径连接，上式会沿路径传递，最终得到：
+
+$$
+x_1=x_2=\cdots=x_N.
+$$
+
+因此，连通图中 $L_{\mathrm{c}}$ 的零空间只有全 1 方向，即零特征值只有一个，所以下一个特征值满足 $\lambda_2(L_{\mathrm{c}})>0$。
+
+反过来，如果图不连通，每个连通分量都可以各自取一个常数值，而不同分量之间不需要相等。这样会产生多个彼此独立的零特征向量，所以 $\lambda_2(L_{\mathrm{c}})=0$。更一般地，零特征值的重数等于连通分量个数。
+
+在一致性系统：
+
+$$
+\dot x=-L_{\mathrm{c}}x
+$$
+
+中，$\lambda_1=0$ 对应最终一致方向，不代表误差衰减；真正影响最慢一致性误差衰减速度的是 $\lambda_2(L_{\mathrm{c}})$。因此可以粗略理解为：$\lambda_2(L_{\mathrm{c}})$ 越大，通信网络越紧密，信息扩散和一致性收敛通常越快。
+
+---
+
+### 14.4 本文中这些量的作用
+
+后续优化中，这几个图论量分别承担不同角色：
+
+| 量 | 在本文中的作用 |
+|---|---|
+| $M_{\mathrm{c}}$ | 决定具体通信边，也是主要拓扑决策变量 |
+| $\Lambda_{\mathrm{c}}$ | 表示节点度数，进入通信稀疏性和节点度均衡目标 |
+| $L_{\mathrm{c}}$ | 表示一致性反馈中的邻居差异结构 |
+| $\lambda_2(L_{\mathrm{c}})$ | 判断通信图是否连通，并作为连通性/收敛性的谱指标 |
+
+因此，本文后续从通信拓扑到闭环控制性能的核心链条是：
+
+$$
+M_{\mathrm{c}}
+\rightarrow
+\Lambda_{\mathrm{c}},L_{\mathrm{c}}
+\rightarrow
+C=\mathcal{H}
+\left(
+M_{\mathrm{c}}
+\right)
+\rightarrow
+A_{\mathrm{cl}}
+=
+A-BC.
+$$
+
+第 14 节只需要记住这一点：图论不是独立主题，而是为了把通信网络写成矩阵，并让它进入后续的闭环系统和优化问题。
 
 ## 15. 从单台 WT 模型到全场闭环模型：式 (9)、式 (10) 与附录 B 的理解
 
@@ -5421,3 +4222,875 @@ $$
 $$
 
 其中，$f_{\mathrm{CR}}$ 对应控制性能，$f_{\mathrm{CS}}$ 对应通信成本，$f_{\mathrm{NF}}$ 对应节点度均衡和近似通信生存性。三者共同构成最终目标函数，$\mu_1$ 和 $\mu_2$ 决定这种折中关系。
+
+## 21. ADMM 前的度矩阵约束：从邻接矩阵到可行度序列
+
+Section IV 在正式给出 ADMM 迭代之前，先补充了一个关键问题：如果把邻接矩阵 $M_{\mathrm{c}}$ 和度矩阵 $\Lambda_{\mathrm{c}}$ 分开更新，那么 $\Lambda_{\mathrm{c}}$ 子问题不能只追求边数少、度数均衡，还必须保证得到的度序列有可能对应一个实际通信图。
+
+因此，本节的重点不是重新展开最终目标函数，而是解释两个问题：
+
+1. 为什么 $M_{\mathrm{c}}$ 和 $\Lambda_{\mathrm{c}}$ 可以作为不同变量块处理；
+2. 为什么更新 $\Lambda_{\mathrm{c}}$ 时还要额外加入 Lemma 2 和 Lemma 3 的图论约束。
+
+---
+
+### 21.1 $M_{\mathrm{c}}$ 与 $\Lambda_{\mathrm{c}}$ 的分工
+
+在最终问题中，$f_{\mathrm{CR}}$ 主要通过通信矩阵影响闭环动态：
+
+$$
+M_{\mathrm{c}}
+\rightarrow
+C
+\rightarrow
+A_{\mathrm{cl}}
+\rightarrow
+x(t)
+\rightarrow
+f_{\mathrm{CR}}.
+$$
+
+而 $f_{\mathrm{CS}}$ 和 $f_{\mathrm{NF}}$ 主要依赖度矩阵：
+
+$$
+f_{\mathrm{CS}}
+=
+\|\Lambda_{\mathrm{c}}\|_{\ell_1},
+\qquad
+f_{\mathrm{NF}}
+=
+\|\Lambda_{\mathrm{c}}-\bar{\Lambda}_{\mathrm{c}}I\|_{\ell_1}.
+$$
+
+二者并不是独立变量。对任意节点 $i$，有：
+
+$$
+\Lambda_{\mathrm{c},ii}
+=
+\sum_{j=1}^{N}
+M_{\mathrm{c},ij}.
+$$
+
+也就是说，$\Lambda_{\mathrm{c}}$ 由 $M_{\mathrm{c}}$ 的行和决定。论文将这种关系抽象为线性映射：
+
+$$
+\varpi M_{\mathrm{c}}
+=
+\Lambda_{\mathrm{c}}.
+$$
+
+这里的 $\varpi$ 可以理解为“对邻接矩阵取行和并形成度矩阵”的线性算子。需要注意的是，这不是从 $\Lambda_{\mathrm{c}}$ 唯一恢复 $M_{\mathrm{c}}$ 的反算子；同一个度序列通常可以对应多个不同邻接矩阵。因此，后文的变量分解更像是把“具体边选择”和“节点度分布”分开处理，再通过一致性约束把二者协调起来。
+
+---
+
+### 21.2 为什么只优化 $\Lambda_{\mathrm{c}}$ 不够
+
+$\Lambda_{\mathrm{c}}$ 只记录每个节点的度数，不记录边具体连向哪里。因此，仅凭度矩阵无法判断通信图是否连通。
+
+例如，两个通信图可以具有相同度序列，但一个连通，另一个不连通。若 $\Lambda_{\mathrm{c}}$ 子问题只优化 $f_{\mathrm{CS}}$ 和 $f_{\mathrm{NF}}$，可能得到一个边数较少且度数较均衡的度分布，但这个度分布未必能对应合法简单图，更未必能对应连通图。
+
+所以，论文在更新 $\Lambda_{\mathrm{c}}$ 时加入 Lemma 2 和 Lemma 3 对应的附加约束。它们的作用不是直接构造最终拓扑，而是提前排除明显不可实现或不可能连通的度序列。
+
+---
+
+### 21.3 Lemma 2：潜在连通的基本筛选
+
+论文引用 [33，Y. C. Zhao, Y. S. Zhang, and L. Y. Miao, 2009, “The degree sequence of connected graphs and the number of lower degree vertices of connected plannar graphs”]，给出潜在连通度序列的基本条件。若：
+
+$$
+\Lambda_{\mathrm{c}}
+=
+\operatorname{diag}
+\left(
+\Lambda_{\mathrm{c},11},
+\cdots,
+\Lambda_{\mathrm{c},NN}
+\right),
+$$
+
+则一个可能对应连通图的度序列至少应满足：
+
+$$
+\Lambda_{\mathrm{c},ii}
+\geq
+1,
+\quad
+\forall i,
+$$
+
+以及：
+
+$$
+\sum_{i=1}^{N}
+\Lambda_{\mathrm{c},ii}
+\geq
+2(N-1).
+$$
+
+第一条排除孤立节点；第二条来自无向连通图至少需要 $N-1$ 条边，而无向图的总度数等于边数的两倍：
+
+$$
+\sum_{i=1}^{N}
+\Lambda_{\mathrm{c},ii}
+=
+2|E_{\mathrm{c}}|
+\geq
+2(N-1).
+$$
+
+因此，Lemma 2 可以理解为对 $\Lambda_{\mathrm{c}}$ 的潜在连通性筛选。
+
+> 注：文献 [33] 还讨论了平面图等更特殊图类下的度序列条件。例如，对 $N\geq 3$ 的简单连通平面图，由欧拉公式可得边数上界 $|E_{\mathrm{c}}|\leq 3N-6$，因此总度数还满足：
+$$
+\sum_{i=1}^{N}
+\Lambda_{\mathrm{c},ii}
+=
+2|E_{\mathrm{c}}|
+\leq
+6N-12.
+$$
+但本文的通信网络优化并没有施加“平面嵌入”或“通信边在几何平面上不能交叉”的约束，而是按一般简单无向通信图处理。换句话说，它不是平面图约束下的拓扑优化问题，因此不能把 $6N-12$ 这类平面图上界直接加入本文模型。论文保留的是更一般的潜在连通下界，而不是平面图专用的总度数上界。
+
+---
+
+### 21.4 Lemma 3：度序列可图化约束
+
+论文进一步引用 [34，P. Erdős and T. Gallai, 1959, “On maximal paths and circuits of graphs”]，使用 Erdős-Gallai 型条件判断一个非负整数度序列是否可以由简单图实现。
+
+若度序列按非增顺序排列，则需要总度数为偶数，并且对每个：
+
+$$
+d
+\in
+\{1,2,\cdots,N\},
+$$
+
+满足：
+
+$$
+\sum_{i=1}^{d}
+\Lambda_{\mathrm{c},ii}
+\leq
+d(d-1)
++
+\sum_{i=d+1}^{N}
+\min
+\left\{
+d,\Lambda_{\mathrm{c},ii}
+\right\}.
+$$
+
+这个不等式的含义是：前 $d$ 个高度节点之间最多贡献 $d(d-1)$ 个度数计数，它们与其余节点之间的连接贡献又受到其余节点度数和 $d$ 的共同限制。如果前 $d$ 个节点要求的度数过大，而剩余节点无法提供足够连接对象，则该度序列不可能由简单图实现。
+
+> 注：Erdős-Gallai 不等式的必要性可以这样理解。取度数最大的前 $d$ 个节点构成集合 $S$，其度数和 $\sum_{i=1}^{d}\Lambda_{\mathrm{c},ii}$ 来自两类边：一类是 $S$ 内部的边，最多有 $d(d-1)/2$ 条，在度数和中被计两次，所以最多贡献 $d(d-1)$；另一类是 $S$ 与剩余节点之间的边。对任意剩余节点 $i>d$，它最多只能连向 $S$ 中的 $d$ 个节点，同时也不能超过自身度数 $\Lambda_{\mathrm{c},ii}$，所以贡献上界为 $\min\{d,\Lambda_{\mathrm{c},ii}\}$。把这两部分相加，就得到：$$
+\sum_{i=1}^{d}\Lambda_{\mathrm{c},ii}\leq d(d-1)+\sum_{i=d+1}^{N}\min\left\{d,\Lambda_{\mathrm{c},ii}\right\}.$$
+这说明该不等式是“任何简单图度序列必须满足”的必要条件。充分性则是 Erdős-Gallai 定理较深的一面，通常可通过 Havel-Hakimi 归约或等价的交换边构造证明：若总度数为偶数且所有这些前缀不等式均成立，则可以逐步构造出一个简单图实现该度序列。
+
+论文在式 (24)–(28) 中把这些要求整理为线性约束。除了总度数下界，还需要对度序列排序。论文式 (25) 写作：
+
+$$
+\Lambda_{\mathrm{c},ii}
+\geq
+\Lambda_{\mathrm{c},i-1,i-1},
+\quad
+i=2,\cdots,N.
+$$
+
+按常规定义，非增排列通常写作 $d_1\geq d_2\geq\cdots\geq d_N$。因此，这里的不等号方向可能与作者的索引排列方式有关，阅读时重点应放在它的目的：先固定度序列顺序，再使用 Erdős-Gallai 型判据。
+
+对于主不等式中的：
+
+$$
+\min
+\left\{
+d,\Lambda_{\mathrm{c},ii}
+\right\},
+$$
+
+论文引入辅助变量 $\beta_{d,i}$，并使用：
+
+$$
+\beta_{d,i}
+\leq
+d,
+\qquad
+\beta_{d,i}
+\leq
+\Lambda_{\mathrm{c},ii}.
+$$
+
+于是主约束可写成：
+
+$$
+\sum_{i=1}^{d}
+\Lambda_{\mathrm{c},ii}
+\leq
+d(d-1)
++
+\sum_{i=d+1}^{N}
+\beta_{d,i},
+\quad
+d=1,\cdots,N-1.
+$$
+
+这样，原本涉及 $\min\{\cdot,\cdot\}$ 的度序列判据就被转化为线性约束。论文强调这些附加约束不会显著增加优化负担，原因也在这里：它们主要是线性不等式。
+
+> 注：Lemma 3 中还包含“总度数为偶数”的条件。论文列出的式 (24)–(28) 没有单独把偶数条件写成一个线性约束；从实现角度看，这可能依赖 $M_{\mathrm{c}}$ 的 $0$-$1$ 对称邻接结构和 $\Lambda_{\mathrm{c}}$ 与 $M_{\mathrm{c}}$ 的一致性关系来保证。阅读时不宜把式 (24)–(28) 理解为完整替代所有图论条件，而应理解为对 $\Lambda_{\mathrm{c}}$ 子问题加入的一组可处理的图论筛选约束。
+
+---
+
+### 21.5 当前理解小结
+
+第21节可以压缩成一句话：在进入 ADMM 之前，论文先说明 $M_{\mathrm{c}}$ 负责具体边和闭环性能，$\Lambda_{\mathrm{c}}$ 负责度分布和通信代价；二者通过线性行和关系保持一致，而 $\Lambda_{\mathrm{c}}$ 更新还需要 Lemma 2 和 Lemma 3 来避免产生不可图化或明显不可能连通的度序列。
+
+因此，这一段的作用是为后文 ADMM 变量分裂铺垫约束结构，而不是再次解释 $f_{\mathrm{CR}}$、$f_{\mathrm{CS}}$、$f_{\mathrm{NF}}$ 的物理含义。
+
+---
+
+## 22. 上层 ADMM：按目标和变量块分解
+
+Section IV-A 的作用，是把最终 MISDP 拆成两个相互协调的变量块。标准 ADMM 处理的是：
+
+$$
+\min_{x,z}
+f(x)+g(z),
+\quad
+\text{s.t. }
+Ax=z.
+$$
+
+> 注：ADMM 的一般过程可以理解为“分开优化，交替协调”。对上述问题，先构造增广拉格朗日函数：$$
+L_{\rho}(x,z,y)=f(x)+g(z)+y^{\mathrm{T}}(Ax-z)+\frac{\rho}{2}\|Ax-z\|_{\ell_2}^{2}.$$
+> 然后在第 $k+1$ 轮交替执行：$$
+\begin{cases}
+\displaystyle
+x^{(k+1)}=\arg \min_x L_{\rho}\left(x,z^{(k)},y^{(k)}\right),\\
+\displaystyle
+z^{(k+1)}=\arg \min_z L_{\rho}\left(x^{(k+1)},z,y^{(k)}\right),\\
+\displaystyle
+y^{(k+1)}=y^{(k)}+\rho\left(Ax^{(k+1)}-z^{(k+1)}\right).
+\end{cases} $$
+> 其中，$x$ 更新主要处理 $f(x)$，$z$ 更新主要处理 $g(z)$，$y$ 更新则累积一致性残差 $Ax-z$。本文上层 ADMM 只是把 $x,z,A$ 分别替换为 $\Upsilon,\Omega,\psi$。
+
+本文对应关系为：
+$$
+x\leftrightarrow \Upsilon,
+\quad
+z\leftrightarrow \Omega,
+\quad
+A\leftrightarrow \psi.
+$$
+
+---
+
+### 22.1 变量分裂
+
+论文将变量分成两组：
+
+$$
+\begin{aligned}
+\Upsilon
+&=
+\operatorname{diag}
+\left(
+M_{\mathrm{c}},
+\lambda_2,
+\gamma,
+\beta^{\Upsilon}
+\right),\\
+\Omega
+&=
+\operatorname{diag}
+\left(
+\Lambda_{\mathrm{c}},
+\lambda_2^{\Omega},
+\gamma^{\Omega},
+\beta
+\right).
+\end{aligned}
+$$
+
+其中，$\Upsilon$ 侧主要负责具体邻接矩阵 $M_{\mathrm{c}}$ 和闭环性能 $f_{\mathrm{CR}}$；$\Omega$ 侧主要负责度矩阵 $\Lambda_{\mathrm{c}}$，以及 $f_{\mathrm{CS}}$、$f_{\mathrm{NF}}$ 和度序列约束。
+
+两组变量通过线性一致性约束联系：
+
+$$
+\psi\Upsilon
+=
+\Omega,
+\quad
+\psi
+=
+\operatorname{diag}
+\left(
+\varpi,1,1,1
+\right).
+$$
+
+这里 $\varpi$ 表示从 $M_{\mathrm{c}}$ 到 $\Lambda_{\mathrm{c}}$ 的行和映射，其余三个 $1$ 表示标量辅助变量在两侧应保持一致。
+
+---
+
+### 22.2 上层增广拉格朗日函数
+
+论文式 (30) 可写为：
+
+$$
+\begin{aligned}
+L_{\rho}
+\left(
+\Upsilon,\Omega,y
+\right)
+=&
+f_{\mathrm{CR}}
+\left(
+\Upsilon
+\right)
++
+\mu_1
+f_{\mathrm{CS}}
+\left(
+\Omega
+\right)
++
+\mu_2
+f_{\mathrm{NF}}
+\left(
+\Omega
+\right)\\
+&+
+y^{\mathrm{T}}
+\left(
+\psi\Upsilon-\Omega
+\right)
++
+\frac{\rho}{2}
+\left\|
+\psi\Upsilon-\Omega
+\right\|_{\ell_2}^{2}.
+\end{aligned}
+$$
+
+前两类项分别对应控制性能和通信拓扑指标；后两项用于惩罚 $\psi\Upsilon$ 与 $\Omega$ 的不一致。
+
+---
+
+### 22.3 上层三步迭代
+
+上层第 $i+1$ 轮迭代为：
+
+$$
+\begin{cases}
+\displaystyle
+\Omega^{(i+1)}
+=
+\arg\min_{\Omega}
+L_{\rho}
+\left(
+\Upsilon^{(i)},\Omega,y^{(i)}
+\right),
+\quad
+\text{s.t. } (17),(24)\text{--}(28),\\[8pt]
+\displaystyle
+\Upsilon^{(i+1)}
+=
+\arg\min_{\Upsilon}
+L_{\rho}
+\left(
+\Upsilon,\Omega^{(i+1)},y^{(i)}
+\right),
+\quad
+\text{s.t. } (16),(19),(21),\\[8pt]
+\displaystyle
+y^{(i+1)}
+=
+y^{(i)}
++
+\rho
+\left(
+\psi\Upsilon^{(i+1)}
+-
+\Omega^{(i+1)}
+\right).
+\end{cases}
+$$
+
+三步的分工可以概括为：
+
+| 步骤 | 更新对象 | 主要作用 | 难点 |
+|---|---|---|---|
+| Step 1 | $\Omega$ | 优化度矩阵、通信成本和节点度均衡 | 凸目标 + 线性约束 |
+| Step 2 | $\Upsilon$ | 优化闭环性能并满足拓扑约束 | $0$-$1$、LMI、$f_{\mathrm{CR}}$ 耦合 |
+| Step 3 | $y$ | 累积一致性残差 | 显式加法 |
+
+> 注：Step 1 中，真正需要数值求解的是 $\Lambda_{\mathrm{c}}$ 子问题；$\lambda_2^{\Omega}$、$\gamma^{\Omega}$、$\beta$ 这些标量没有进入 $f_{\mathrm{CS}}$ 和 $f_{\mathrm{NF}}$，主要由二次惩罚项和对偶变量拉回到 $\Upsilon$ 侧对应值附近。因此它们可以理解为一致性辅助变量。
+
+> 对应的闭式迭代律推导如下：
+以任意一个 $\Omega$ 侧辅助标量 $\Omega_k$ 为例，Step 1 中与它有关的项只有：$$
+\min_{\Omega_k}\left\{-y_k^{(i)}\Omega_k+\frac{\rho}{2}\left(\psi_k\Upsilon_k^{(i)}-\Omega_k\right)^2\right\}.$$
+对 $\Omega_k$ 求偏导并令其为零：$$
+-y_k^{(i)}-\rho\left(\psi_k\Upsilon_k^{(i)}-\Omega_k\right)=0,$$
+即可得到：$$
+\Omega_k^{(i+1)}=\psi_k\Upsilon_k^{(i)}+\frac{1}{\rho}y_k^{(i)}.$$
+由于 $\lambda_2^{\Omega}$、$\gamma^{\Omega}$ 和 $\beta$ 对应的 $\psi_k=1$，因此：$$
+\begin{cases}
+\displaystyle
+\lambda_2^{\Omega,(i+1)}=\lambda_2^{(i)}+\dfrac{1}{\rho}y_{\lambda_2}^{(i)},\\[6pt]
+\displaystyle
+\gamma^{\Omega,(i+1)}=\gamma^{(i)}+\dfrac{1}{\rho}y_{\gamma}^{(i)},\\[6pt]
+\displaystyle
+\beta^{(i+1)}=\beta^{\Upsilon,(i)}+\dfrac{1}{\rho}y_{\beta}^{(i)}.
+\end{cases} $$
+若在 Step 2 中只看自由标量 $\beta^{\Upsilon}$，同理可得：$$
+\beta^{\Upsilon,(i+1)}=\beta^{(i+1)}-\frac{1}{\rho} y_{\beta}^{(i)}.$$
+这里正负号的差别来自增广拉格朗日中的一致性项 $y^{\mathrm{T}}(\psi\Upsilon-\Omega)$：更新 $\Omega$ 侧变量时对偶项贡献为 $-y^{\mathrm{T}}\Omega$，更新 $\Upsilon$ 侧变量时则为 $+y^{\mathrm{T}}\psi\Upsilon$。
+
+---
+
+### 22.4 为什么 Step 2 还要再分解
+
+Step 2 的核心困难是：
+
+$$
+\Upsilon
+=
+\operatorname{diag}
+\left(
+M_{\mathrm{c}},
+\lambda_2,
+\gamma,
+\beta^{\Upsilon}
+\right)
+$$
+
+内部变量的约束性质差别很大。$M_{\mathrm{c}}$ 受 $0$-$1$ 邻接矩阵约束，$\gamma$ 和 $\lambda_2$ 又涉及式 (21) 的半正定/代数连通度约束；而 $f_{\mathrm{CR}}$ 本身还依赖闭环矩阵 $A_{\mathrm{cl}}=A-BC$。因此，Step 2 不能像 Step 1 那样直接化成简单凸子问题。
+
+这就是论文引入下层 ADMM 的原因：把 Step 2 进一步拆成“无约束性能下降”和“约束投影”两个部分。
+
+---
+
+### 22.5 上层收敛判据
+
+上层停止条件由两个残差决定：
+
+$$
+\begin{cases}
+\displaystyle
+\tau_1^{\mathrm{pri}}
+\left(
+i
+\right)
+=
+\psi\Upsilon^{(i)}
+-
+\Omega^{(i)},\\[6pt]
+\displaystyle
+\tau_1^{\mathrm{dual}}
+\left(
+i
+\right)
+=
+\rho
+\left(
+\Omega^{(i)}
+-
+\Omega^{(i-1)}
+\right).
+\end{cases}
+$$
+
+当：
+
+$$
+\left\|
+\tau_1^{\mathrm{pri}}
+\left(
+i
+\right)
+\right\|_{\ell_2}^{2}
+\leq
+\epsilon_1^{\mathrm{pri}},
+\quad
+\left\|
+\tau_1^{\mathrm{dual}}
+\left(
+i
+\right)
+\right\|_{\ell_2}^{2}
+\leq
+\epsilon_1^{\mathrm{dual}},
+$$
+
+即可认为上层变量已经基本一致，且迭代变化足够小。
+
+---
+
+## 23. 下层 ADMM：把性能下降和约束投影分开
+
+下层 ADMM 用来求解上层 Step 2。它不是重新设计一个新目标，而是把 $\Upsilon$ 子问题再拆一层：$\Theta$ 负责无约束目标下降，$\Upsilon$ 负责满足原来的拓扑约束。
+
+---
+
+### 23.1 下层变量分裂
+
+引入与 $\Upsilon$ 结构相同的变量：
+
+$$
+\Theta
+=
+\operatorname{diag}
+\left(
+M_{\mathrm{c}}^{\Theta},
+\lambda_2^{\Theta},
+\gamma^{\Theta},
+\beta^{\Theta}
+\right),
+\quad
+\Theta=\Upsilon.
+$$
+
+其中，$\Theta$ 侧承接 $f_{\mathrm{CR}}$ 和上层耦合项，便于做无约束梯度更新；$\Upsilon$ 侧保留约束 (16)、(19)、(21)，用于把结果拉回可行域。
+
+---
+
+### 23.2 下层增广拉格朗日函数
+
+论文式 (38) 可写为：
+
+$$
+\begin{aligned}
+L_{\rho,\vartheta}
+\left(
+\Theta,\Upsilon,u
+\right)
+=&
+f_{\mathrm{CR}}
+\left(
+\Theta
+\right)
++
+\left(
+y^{(i)}
+\right)^{\mathrm{T}}
+\left(
+\psi\Theta-\Omega^{(i+1)}
+\right)\\
+&+
+\frac{\rho}{2}
+\left\|
+\psi\Theta-\Omega^{(i+1)}
+\right\|_{\ell_2}^{2}
++
+u^{\mathrm{T}}
+\left(
+\Upsilon-\Theta
+\right)
++
+\frac{\vartheta}{2}
+\left\|
+\Upsilon-\Theta
+\right\|_{\ell_2}^{2}.
+\end{aligned}
+$$
+
+其中 $u$ 是下层对偶变量，$\vartheta$ 是下层惩罚参数。
+
+---
+
+### 23.3 下层三步迭代
+
+在上层第 $i+1$ 轮内部，下层第 $j+1$ 轮为：
+
+$$
+\begin{cases}
+\displaystyle
+\Theta^{(j+1)}
+=
+\arg\min_{\Theta}
+L_{\rho,\vartheta}
+\left(
+\Theta,\Upsilon^{(j)},u^{(j)}
+\right),\\[8pt]
+\displaystyle
+\Upsilon^{(j+1)}
+=
+\arg\min_{\Upsilon}
+L_{\rho,\vartheta}
+\left(
+\Theta^{(j+1)},\Upsilon,u^{(j)}
+\right),
+\quad
+\text{s.t. } (16),(19),(21),\\[8pt]
+\displaystyle
+u^{(j+1)}
+=
+u^{(j)}
++
+\vartheta
+\left(
+\Upsilon^{(j+1)}
+-
+\Theta^{(j+1)}
+\right).
+\end{cases}
+$$
+
+这里 L1 是无约束目标下降，L2 是带约束投影，L3 是对偶变量更新。
+
+---
+
+### 23.4 Step L1：$f_{\mathrm{CR}}$ 的梯度计算
+
+给定当前 $\Theta$，定义：
+
+$$
+A_{\mathrm{cl},v}^{\Theta}
+=
+\left(
+A+v_{\mathrm{spe}}I
+\right)
+-
+BC^{\Theta}.
+$$
+
+论文通过两个矩阵方程计算梯度。首先解式 (41)：
+
+$$
+A_{\mathrm{cl},v}^{\Theta}T
++
+T
+\left(
+A_{\mathrm{cl},v}^{\Theta}
+\right)^{\mathrm{T}}
+=
+-\Gamma.
+$$
+
+再解式 (42)：
+
+$$
+\left(
+A_{\mathrm{cl},v}^{\Theta}
+\right)^{\mathrm{T}}P
++
+P
+A_{\mathrm{cl},v}^{\Theta}
+=
+-
+\left(
+Q+
+\left(
+C^{\Theta}
+\right)^{\mathrm{T}}
+RC^{\Theta}
+\right).
+$$
+
+其中，$T$ 可理解为初始状态协方差沿闭环轨迹传播后的累计量；$P$ 是二次型积分代价对应的 Lyapunov 权矩阵。
+
+由 [23，Gaeini et al., 2021, “Optimization of communication network topology in distributed control systems subject to prescribed decay rate”] 的推导，性能指标对反馈矩阵的梯度可由 Lyapunov 方程微分得到。
+
+为简化记号，令：
+
+$$
+F=A_{\mathrm{cl},v}^{\Theta},\quad S=Q+\left(C^{\Theta}\right)^{\mathrm{T}}RC^{\Theta}.
+$$
+
+则 $P$ 满足：
+
+$$
+F^{\mathrm{T}}P+PF+S=0,\quad f_{\mathrm{CR}}=\operatorname{tr}(P\Gamma).
+$$
+
+对 $C^{\Theta}$ 作微小扰动，有 $\mathrm{d}F=-B\,\mathrm{d}C^{\Theta}$，且：
+
+$$
+\mathrm{d}S=\left(\mathrm{d}C^{\Theta}\right)^{\mathrm{T}}RC^{\Theta}+\left(C^{\Theta}\right)^{\mathrm{T}}R\,\mathrm{d}C^{\Theta}.
+$$
+
+对 $F^{\mathrm{T}}P+PF+S=0$ 求微分：
+
+$$
+F^{\mathrm{T}}\mathrm{d}P+\mathrm{d}P\,F+\left(\mathrm{d}F\right)^{\mathrm{T}}P+P\,\mathrm{d}F+\mathrm{d}S=0.
+$$
+
+另一方面，$T$ 满足 $FT+TF^{\mathrm{T}}=-\Gamma$。利用迹运算的循环性质，可将：
+
+$$
+\mathrm{d}f_{\mathrm{CR}}=\operatorname{tr}\left(\mathrm{d}P\,\Gamma\right)
+$$
+
+中的 $\mathrm{d}P$ 消去，得到：
+
+$$
+\mathrm{d}f_{\mathrm{CR}}=\operatorname{tr}\left(\left[\left(\mathrm{d}F\right)^{\mathrm{T}}P+P\,\mathrm{d}F+\mathrm{d}S\right]T\right).
+$$
+
+代入 $\mathrm{d}F=-B\,\mathrm{d}C^{\Theta}$ 和 $\mathrm{d}S$，整理为 $\mathrm{d}f_{\mathrm{CR}}=\operatorname{tr}\left(G^{\mathrm{T}}\mathrm{d}C^{\Theta}\right)$，可得：
+
+$$
+\frac{\partial f_{\mathrm{CR}}}
+{\partial C^{\Theta}}
+=
+2
+\left(
+RC^{\Theta}
+-
+B^{\mathrm{T}}P
+\right)
+T.
+$$
+
+因此：
+
+$$
+\frac{\partial f_{\mathrm{CR}}}
+{\partial \Theta}
+=
+2
+\left(
+RC^{\Theta}
+-
+B^{\mathrm{T}}P
+\right)
+T
+\frac{\partial C^{\Theta}}
+{\partial \Theta}.
+$$
+
+> 注：式 (41) 在形式上是 Lyapunov 型方程，可看作 Sylvester 方程的特例。$\Gamma$ 表示初始条件的协方差；论文指出最优通信网络不依赖具体初始条件，因此 $\Gamma$ 可取单位阵等方便的正定矩阵。
+
+---
+
+### 23.5 Step L2：约束投影
+
+固定 $\Theta^{(j+1)}$ 后，L2 只需解：
+
+$$
+\Upsilon^{(j+1)}
+=
+\arg\min_{\Upsilon}
+\left\{
+\left(
+u^{(j)}
+\right)^{\mathrm{T}}
+\left(
+\Upsilon-\Theta^{(j+1)}
+\right)
++
+\frac{\vartheta}{2}
+\left\|
+\Upsilon-\Theta^{(j+1)}
+\right\|_{\ell_2}^{2}
+\right\},
+\quad
+\text{s.t. } (16),(19),(21).
+$$
+
+等价地说，它是在找一个满足约束的 $\Upsilon$，使其尽量接近：
+
+$$
+\Theta^{(j+1)}
+-
+\frac{1}{\vartheta}
+u^{(j)}.
+$$
+
+因此 L2 可以理解为投影问题。它仍然包含 $M_{\mathrm{c}}$ 的 $0$-$1$ 约束和 LMI 约束；严格来看，这一步仍带有混合整数性质。若实际实现中希望用连续凸优化求解器处理，通常需要先把 $0$-$1$ 约束松弛为 $0\leq M_{\mathrm{c},ij}\leq 1$，将子问题近似转成 SDP/QP 类问题，再在最终阶段舍入回离散拓扑。
+
+> 注：松弛加舍入是工程上常见处理，但理论上不能自动保证舍入后的拓扑仍满足所有连通性/LMI 条件；因此若舍入后不可行，需要检查连通性并进行修正。
+
+---
+
+### 23.6 下层收敛判据
+
+下层残差与上层形式相同：
+
+$$
+\begin{cases}
+\displaystyle
+\tau_2^{\mathrm{pri}}
+\left(
+j
+\right)
+=
+\Upsilon^{(j)}
+-
+\Theta^{(j)},\\[6pt]
+\displaystyle
+\tau_2^{\mathrm{dual}}
+\left(
+j
+\right)
+=
+\vartheta
+\left(
+\Theta^{(j)}
+-
+\Theta^{(j-1)}
+\right).
+\end{cases}
+$$
+
+当：
+
+$$
+\left\|
+\tau_2^{\mathrm{pri}}
+\left(
+j
+\right)
+\right\|_{\ell_2}^{2}
+\leq
+\epsilon_2^{\mathrm{pri}},
+\quad
+\left\|
+\tau_2^{\mathrm{dual}}
+\left(
+j
+\right)
+\right\|_{\ell_2}^{2}
+\leq
+\epsilon_2^{\mathrm{dual}},
+$$
+
+则下层迭代停止，并把当前 $\Upsilon$ 返回给上层 Step 2。
+
+> 注：原文式 (46)–(47) 的印刷文本疑似混入了上层变量。按下层 ADMM 结构，此处应检查 $\Upsilon$ 与 $\Theta$ 的一致性，以及 $\Theta$ 的相邻迭代变化。
+
+---
+
+### 23.7 当前理解小结
+
+双层 ADMM 的逻辑可以概括为：
+
+$$
+\begin{cases}
+\text{上层：拆 } \Omega \text{ 与 } \Upsilon,
+\text{即拆度矩阵目标和邻接矩阵控制目标},\\
+\text{下层：拆 } \Theta \text{ 与 } \Upsilon,
+\text{即拆无约束性能下降和约束投影}.
+\end{cases}
+$$
+
+因此，论文的优化方法并不是一次性求解原始 MISDP，而是通过两层变量分裂，把问题改写成“度矩阵凸优化 + 控制性能梯度更新 + 拓扑约束投影 + 对偶一致性修正”的迭代流程。
+
+---
+
+## 笔记参考文献
+
+本笔记在阅读过程中引用了以下文献：
+
+[23] N. Gaeini, A. Moradi Amani, M. Jalili, and X. Yu, "Optimization of communication network topology in distributed control systems subject to prescribed decay rate," *IEEE Trans. Cybern.*, vol. 51, no. 8, pp. 4277–4285, Aug. 2021.
+—— 首次将带衰减率约束的通信拓扑优化与 LQR 灵敏度分析结合，给出了本文下层 ADMM 中 $f_{\mathrm{CR}}$ 关于反馈矩阵 $C$ 的梯度公式 (40)–(42)。
+
+[27] J. Khazaei, D. H. Nguyen, and A. Khazaei, "Consensus-Based Demand Response of PMSG Wind Turbines With Distributed Energy Storage Considering Capability Curves," *IEEE Trans. Sustain. Energy*, vol. 11, no. 4, pp. 2315–2324, Oct. 2020.
+—— 首次提出 ES 一致性变量 $E_{\mathrm{e},i}=K_1P_{\mathrm{e},i}+K_2S_{\mathrm{e},i}$，将功率分担与 SOC 协调统一到分布式一致性框架中（第 11 节）。
+
+[28] B. D. O. Anderson and J. B. Moore, *Linear Optimal Control*. Englewood Cliffs, NJ, USA: Prentice-Hall, 1971.
+—— 经典最优控制教材。Lyapunov 方程与二次型积分代价的关系（第 16.12 节），LQR 型指标的理解框架。
+
+[33] —— Lemma 2 的出处，关于满足连通度序列的图存在性条件（第 21 节）。
+
+[34] P. Erdős and T. Gallai, "On maximal paths and circuits of graphs," *Acta Math. Acad. Sci. Hung.*, vol. 10, no. 3–4, pp. 337–356, Sep. 1959.
+—— Erdős-Gallai 定理的原始文献，给出度数序列可由简单图实现的充要条件。论文 Lemma 3 使用该条件约束 $\Lambda_c$ 子问题的可行域（第 21 节）。
